@@ -1,0 +1,15 @@
+## Interface: 80000
+## Title: |cfffe7b2cElvUI|r SpellBinder
+## Version: v0.1.0
+## Author: Nîne-Shu'halo
+## Notes: Allows you to bind abilities, items and commands to mouse clicks
+## SavedVariablesPerCharacter: ElvUI_SpellBinderDB
+## SavedVariables: ElvUI_SpellBinderGlobalDB
+## Dependencies: ElvUI
+
+Libraries\Load_Libraries.xml
+locales\load_locales.xml
+Extensions.lua
+modules\ExtraTables.lua
+modules\Config.lua
+modules\SpellBinder.lua
