@@ -164,7 +164,7 @@ function SB:SB_OnTooltipSetUnit(t)
                 rightText = "-" .. costString
             end
 
-            leftText = string.format("%-30s", leftText)
+            leftText = string.format("%-20s", leftText)
             GameTooltip:AddDoubleLine(leftText, rightText, color[1], color[2], color[3], 0.5,0.2,0.8)
         end
     end
@@ -208,10 +208,20 @@ function SB:GetClickAttributes()
     for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
         local prefix, button = SB:GetAttributeString(v)
         local spellAttr = ButtonToSpellAttribute[button]
+
+        if prefix == "" and button == "type1" then
+            rem[#rem + 1] = "button:SetAttribute('type1', 'target')"
+            rem[#rem + 1] = "button:SetAttribute('spell1', 'nil')"
+        elseif prefix == "" and button == "type2" then
+            rem[#rem + 1] = "button:SetAttribute('type2', 'togglemenu')"
+            rem[#rem + 1] = "button:SetAttribute('spell2', 'nil')"
+        else
+            rem[#rem + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'nil')"
+            rem[#rem + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', 'nil')"
+        end
+
         add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'spell')"
-        rem[#rem + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'nil')"
         add[#add + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', '" .. k .. "')"
-        rem[#rem + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', 'nil')"
     end
 
     return table.concat(add, "\n"), table.concat(rem, "\n")
@@ -326,8 +336,6 @@ function SB:Initialize()
         self:CancelTimer(TooltipUpdateTimer)
         TooltipUpdateTimer = nil
     end)
-
-    print(setup)
 end
 
 E:RegisterModule(SB:GetName())

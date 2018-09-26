@@ -65,6 +65,7 @@ V.SpellBinder.OtherSpells = {
         ["POWER_WORD_FORTITUDE"] = "Power Word: Fortitude",
         ["POWER_WORD_BARRIER"] = "Power Word: Barrier",
         ["PURIFY"] = "Purify",
+        ["PURIFY_DISEASE"] = "Purify Disease",
         ["RESURRECTION"] = "Resurrection",
         ["DESPERATE_PRAYER"] = "Desperate Prayer",
         ["PAIN_SUPPRESSION"] = "Pain Suppression",
