@@ -4,13 +4,11 @@
 ]]--
 
 local E, L, V, P, G = unpack(ElvUI) -- Engine, Locales, PrivateDB, ProfileDB, GlobalDB
-local ACD = LibStub("AceConfigDialog-3.0-ElvUI")
-local ACR = LibStub("AceConfigRegistry-3.0")
-local AC = LibStub("AceConfig-3.0")
+local ACR = LibStub("AceConfigRegistry-3.0-ElvUI")
 local C = E:NewModule("SpellBinder_Config", "AceHook-3.0", "AceEvent-3.0", "AceTimer-3.0")
 local EP = LibStub("LibElvUIPlugin-1.0")
 
-local addonName, addonTable = ...
+local addonName, addon = ...
 
 -- defaults
 P["SpellBinder"] = {
@@ -37,7 +35,7 @@ E.PopupDialogs["RESET_SB_DATA"] = {
         C:UpdateHealingSpellSelect()
         C:UpdateOtherSpellSelect()
         C:UpdateItemTable()
-        ACR:NotifyChange(C:GetName())
+        ACR:NotifyChange("ElvUI")
     end,
     timeout = 0,
     whileDead = 1,
@@ -51,24 +49,17 @@ end
 
 function C:PurgeTables(purgeAll)
     -- These tables should always start empty
-   --[[ for k, _ in pairs(E.private.SpellBinder.UsableHealingSpells) do E.private.SpellBinder.UsableHealingSpells[k] = nil end
-    for k, _ in pairs(E.private.SpellBinder.UsableOtherSpells) do E.private.SpellBinder.UsableOtherSpells[k] = nil end
-    for k, _ in pairs(E.private.SpellBinder.ActiveBindings) do E.private.SpellBinder.ActiveBindings[k] = nil end
-]]
     E.private.SpellBinder.UsableHealingSpells = table.wipe(E.private.SpellBinder.UsableHealingSpells)
     E.private.SpellBinder.UsableOtherSpells = table.wipe(E.private.SpellBinder.UsableOtherSpells)
     E.private.SpellBinder.ActiveBindings = table.wipe(E.private.SpellBinder.ActiveBindings)
     if (purgeAll) then
-        --for k, _ in pairs(E.db.SpellBinder.ActiveBindings) do E.db.SpellBinder.ActiveBindings[k] = nil end
         E.db.SpellBinder.ActiveBindings = table.wipe(E.db.SpellBinder.ActiveBindings)
     end
 end
 
 function C:UpdateHealingSpellSelect()
     -- Clear all target table data
-    for k, _ in pairs(E.private.SpellBinder.UsableHealingSpells) do
-        E.private.SpellBinder.UsableHealingSpells[k] = nil
-    end
+    E.private.SpellBinder.UsableHealingSpells = table.wipe(E.private.SpellBinder.UsableHealingSpells)
 
     -- Add spells to the target table if they're usable
     table.foreach(E.private.SpellBinder.HealingSpells[E.private.SpellBinder.PlayerClass],
@@ -78,18 +69,16 @@ function C:UpdateHealingSpellSelect()
         function(k, v) C:SetIfUsable(E.private.SpellBinder.UsableHealingSpells, k, v) end)
 
     E.Options.args.SpellBinder.args.bindingsGroup.args.healingSpells.values = E.private.SpellBinder.UsableHealingSpells
-    local a = TableKeysToSortedArray(E.private.SpellBinder.UsableHealingSpells)
+    local a = addon.TableKeysToSortedArray(E.private.SpellBinder.UsableHealingSpells)
 
     E.private.SpellBinder.SelectedHealAbility = a[1]
 
-    ACR:NotifyChange(C:GetName())
+    ACR:NotifyChange("ElvUI")
 end
 
 function C:UpdateOtherSpellSelect()
     -- Clear all target table data
-    for k, _ in pairs(E.private.SpellBinder.UsableOtherSpells) do
-        E.private.SpellBinder.UsableOtherSpells[k] = nil
-    end
+    E.private.SpellBinder.UsableOtherSpells = table.wipe(E.private.SpellBinder.UsableOtherSpells)
 
     -- Add spells to the target table if they're usable
     table.foreach(E.private.SpellBinder.OtherSpells[E.private.SpellBinder.PlayerClass],
@@ -99,11 +88,11 @@ function C:UpdateOtherSpellSelect()
         function(k, v) C:SetIfUsable(E.private.SpellBinder.UsableOtherSpells, k, v) end)
 
     E.Options.args.SpellBinder.args.bindingsGroup.args.otherSpells.values = E.private.SpellBinder.UsableOtherSpells
-    local a = TableKeysToSortedArray(E.private.SpellBinder.UsableOtherSpells)
+    local a = addon.TableKeysToSortedArray(E.private.SpellBinder.UsableOtherSpells)
 
     E.private.SpellBinder.SelectedOtherAbility = a[1]
 
-    ACR:NotifyChange(C:GetName())
+    ACR:NotifyChange("ElvUI")
 end
 
 function C:UpdateCommandTable() end
@@ -118,13 +107,9 @@ function C:UpdateActiveBindingsGroup(ability, text)
 
     while true do
         local spellName = GetSpellBookItemName(i, BOOKTYPE_SPELL)
-        if not spellName then
-            do break end
-        end
+        if not spellName then do break end end
 
-        if spellName == ability then
-            spellText = GetSpellText(i, BOOKTYPE_SPELL);
-        end
+        if spellName == ability then spellText = addon.GetSpellText(i, BOOKTYPE_SPELL); end
 
         i = i + 1
     end
@@ -158,28 +143,27 @@ function C:UpdateActiveBindingsGroup(ability, text)
                 name = L["Delete"],
                 buttonElvUI = true,
                 func = function()
-                    E.db.SpellBinder.ActiveBindings[text] = nil
+                    E.db.SpellBinder.ActiveBindings[ability] = nil
                     E.private.SpellBinder.ActiveBindings[abilityIDString] = nil
-                    ACR:NotifyChange(C:GetName())
+                    ACR:NotifyChange("ElvUI")
+                    addon:UpdateAllAttributes()
                 end,
                 disabled = function() return not E:GetModule("SpellBinder") end,
             },
         },
     }
     E.Options.args.SpellBinder.args.bindingsGroup.args.activeBindings.args = E.private.SpellBinder.ActiveBindings
-    ACR:NotifyChange(C:GetName())
+    ACR:NotifyChange("ElvUI")
 end
 
 function C:UpdateActiveBindings()
-    for k, _ in pairs(E.private.SpellBinder.ActiveBindings) do
-        E.private.SpellBinder.ActiveBindings[k] = nil
-    end
+    E.private.SpellBinder.ActiveBindings = table.wipe(E.private.SpellBinder.ActiveBindings)
 
     for key, value in pairs(E.db.SpellBinder.ActiveBindings) do
-        C:UpdateActiveBindingsGroup(value, key)
+        C:UpdateActiveBindingsGroup(key, value)
     end
 
-    ACR:NotifyChange(C:GetName())
+    ACR:NotifyChange("ElvUI")
 end
 
 function C:BindAbility(table, selected)
@@ -188,11 +172,14 @@ function C:BindAbility(table, selected)
         return
     end
 
-    local text = GetBinding()
+    local text = addon.GetBinding()
     -- TODO: Support items and commands
 
-    E.db.SpellBinder.ActiveBindings[text] = table[E.private.SpellBinder.PlayerClass][selected]
-    C:UpdateActiveBindingsGroup(table[E.private.SpellBinder.PlayerClass][selected], text)
+    --E.db.SpellBinder.ActiveBindings[table[E.private.SpellBinder.PlayerClass][selected]] = text
+    E.db.SpellBinder.ActiveBindings[table[selected]] = text
+    --C:UpdateActiveBindingsGroup(table[E.private.SpellBinder.PlayerClass][selected], text)
+    C:UpdateActiveBindingsGroup(table[selected], text)
+
 end
 
 function C:InsertOptions()
@@ -249,7 +236,6 @@ function C:InsertOptions()
                         desc = "List of healing spells in your spellbook",
                         get = function(info) return E.private.SpellBinder.SelectedHealAbility end,
                         set = function(info, value) E.private.SpellBinder.SelectedHealAbility = value; end,
-                        --values = {}
                         values = E.private.SpellBinder.UsableHealingSpells
                     },
                     healingBind = {
@@ -259,7 +245,11 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(E.private.SpellBinder.HealingSpells, E.private.SpellBinder.SelectedHealAbility)
+                            --C:BindAbility(E.private.SpellBinder.HealingSpells,
+                            --    E.private.SpellBinder.SelectedHealAbility)
+                            C:BindAbility(E.private.SpellBinder.UsableHealingSpells,
+                                E.private.SpellBinder.SelectedHealAbility)
+                            addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
@@ -270,7 +260,6 @@ function C:InsertOptions()
                         customWidth = 500,
                         childGroups = "tree",
                         args = E.private.SpellBinder.ActiveBindings,
-
                     },
                     otherSpells = {
                         order = 4,
@@ -279,7 +268,6 @@ function C:InsertOptions()
                         desc = L["List of other spells in your spellbook"],
                         get = function(info) return E.private.SpellBinder.SelectedOtherAbility end,
                         set = function(info, value) E.private.SpellBinder.SelectedOtherAbility = value end,
-                        --values = {}
                         values = E.private.SpellBinder.UsableOtherSpells
                     },
                     otherBind = {
@@ -289,7 +277,11 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(E.private.SpellBinder.OtherSpells, E.private.SpellBinder.SelectedOtherAbility)
+                            --C:BindAbility(E.private.SpellBinder.OtherSpells,
+                            --    E.private.SpellBinder.SelectedOtherAbility)
+                            C:BindAbility(E.private.SpellBinder.UsableOtherSpells,
+                                E.private.SpellBinder.SelectedOtherAbility)
+                            addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
@@ -310,6 +302,7 @@ function C:InsertOptions()
                         width = "half",
                         func = function()
                             --C:BindAbility(UsableItems, E.private.SpellBinder.SelectedItem)
+                            --addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
@@ -335,18 +328,7 @@ function C:InsertOptions()
                         width = "half",
                         func = function()
                             --C:BindAbility(UsableCommands, E.private.SpellBinder.SelectedCommand)
-                        end,
-                        disabled = function() return not E:GetModule("SpellBinder"); end,
-                    },
-                    loadBindings = {
-                        order = 100,
-                        type = "execute",
-                        name = L["Load Bindings"],
-                        buttonElvUI = true,
-                        func = function()
-                            C:UpdateActiveBindings()
-                            C:UpdateHealingSpellSelect()
-                            C:UpdateOtherSpellSelect()
+                            --addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
@@ -362,8 +344,6 @@ function C:InsertOptions()
 			},
 		},
     }
-
-    AC:RegisterOptionsTable(C:GetName(), E.Options.args.SpellBinder, nil)
 end
 
 function C:Initialize()

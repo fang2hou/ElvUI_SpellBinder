@@ -1,12 +1,15 @@
+
+local addonName, addon = ...
+
 -- Prints all the key value pairs in the given table (See python's dir() function)
-function dir(t)
+function addon.dir(t)
     for k, v in pairs(t) do
         print(k, v)
     end
 end
 
 -- Returns the length of the given table
-function table.length(t)
+function addon.TableLength(t)
     local count = 0
     for k, v in pairs(t) do
         count = count + 1
@@ -15,7 +18,7 @@ function table.length(t)
 end
 
 local tooltip = CreateFrame("GameTooltip", "SpellScanTooltip", UIParent, "GameTooltipTemplate")
-function GetSpellText(spellNum, bookType)
+function addon.GetSpellText(spellNum, bookType)
     tooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
     tooltip:ClearLines()
     tooltip:SetSpellBookItem(spellNum, bookType)
@@ -39,7 +42,7 @@ function GetSpellText(spellNum, bookType)
     return n
 end
 
-function GetBinding()
+function addon.GetBinding()
     local shift = ""
     local ctrl = ""
     local alt = ""
@@ -66,7 +69,7 @@ end
 
 -- Print contents of `tbl`, with indentation.
 -- `indent` sets the initial level of indentation.
-function dump (tbl, indent)
+function addon.Dump (tbl, indent)
     if not indent then indent = 0 end
     for k, v in pairs(tbl) do
         formatting = string.rep("  ", indent) .. k .. ": "
@@ -83,10 +86,15 @@ function dump (tbl, indent)
     end
 end
 
-function TableKeysToSortedArray(t)
+function addon.TableKeysToSortedArray(t)
     local a = {}
     for k in pairs(t) do table.insert(a, k) end
     table.sort(a)
 
     return a
+end
+
+function addon.TableContains(t, key)
+    if t == nil then return false end
+    return t[key] ~= nil
 end

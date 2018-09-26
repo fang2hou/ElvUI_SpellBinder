@@ -5,13 +5,23 @@
 
 -- ElvUI
 local E, L, V, P, G = unpack(ElvUI) -- Engine, Locales, PrivateDB, ProfileDB, GlobalDB
-local SB = E:NewModule("SpellBinder", "AceHook-3.0", "AceEvent-3.0")
+local SB = E:NewModule("SpellBinder", "AceHook-3.0", "AceEvent-3.0", "AceTimer-3.0")
 local C = E:GetModule("SpellBinder_Config")
+
+local addonName, addon = ...
+local CCFrames = {}
+local HCFrames = {}
+
+local TooltipFrames = ClickCastFrames or {}
+
+local GroupHeader = CreateFrame("Frame", addonName .. "HeaderFrame", UIParent,
+    "SecureHandlerBaseTemplate, SecureHandlerAttributeTemplate")
 
 local ButtonMap = {
     ["LeftButton"] = "Left",
     ["RightButton"] = "Right",
     ["MiddleButton"] = "Middle",
+    ["Button4"] = "Button4",
     ["Button5"] = "Button5",
     ["Button6"] = "Button6",
     ["Button7"] = "Button7",
@@ -25,13 +35,49 @@ local ButtonMap = {
     ["Button15"] = "Button15",
 }
 
-function SB:ShouldPutSpellInTooltip(k, v)
+local ButtonToButtonAttribute = {
+    ["LeftButton"] = "type1",
+    ["RightButton"] = "type2",
+    ["MiddleButton"] = "type3",
+    ["Button4"] = "type4",
+    ["Button5"] = "type5",
+    ["Button6"] = "type6",
+    ["Button7"] = "type7",
+    ["Button8"] = "type8",
+    ["Button9"] = "type9",
+    ["Button10"] = "type10",
+    ["Button11"] = "type11",
+    ["Button12"] = "type12",
+    ["Button13"] = "type13",
+    ["Button14"] = "type14",
+    ["Button15"] = "type15",
+}
+
+local ButtonToSpellAttribute = {
+    ["type1"] = "spell1",
+    ["type2"] = "spell2",
+    ["type3"] = "spell3",
+    ["type4"] = "spell4",
+    ["type5"] = "spell5",
+    ["type6"] = "spell6",
+    ["type7"] = "spell7",
+    ["type8"] = "spell8",
+    ["typ9"] = "spell9",
+    ["type10"] = "spell10",
+    ["type11"] = "spell11",
+    ["type12"] = "spell12",
+    ["type13"] = "spell13",
+    ["type14"] = "spell14",
+    ["type15"] = "spell15",
+}
+
+function SB:ShouldPutSpellInTooltip(spell, btext)
     local alt = IsAltKeyDown()
     local shift = IsShiftKeyDown()
-    local ctrl =  IsControlKeyDown()
+    local ctrl = IsControlKeyDown()
 
     -- Break up the binding string into constituants
-    local bpart, binding = "", k
+    local bpart, binding = "", btext
     local bAlt, bCtrl, bShift, bButton = false, false, false, ""
     local count = 0
     while string.find(binding, "+", 0, true) do
@@ -39,50 +85,78 @@ function SB:ShouldPutSpellInTooltip(k, v)
         if bpart == "Alt" then bAlt = true
         elseif bpart == "Ctrl" then bCtrl = true
         elseif bpart == "Shift" then bShift = true end
-        count = count + 1
-        if count >= 5 then break end
     end
     bButton = binding
 
-    --if (not shift and bShift) and (not alt and bAlt) and (not ctrl and bCtrl) then print("return 1")return end
-    if (alt and not bAlt) or (bAlt and not alt) then return nil end
-    if (shift and not bShift) or (bShift and not shift) then return nil end
-    if (ctrl and not bCtrl) or (bCtrl and not ctrl) then return nil end
+    if (alt ~= bAlt) or (shift ~= bShift) or (ctrl ~= bCtrl) then return nil end
 
-    local usable, nomana = IsUsableSpell(v)
+    local usable, nomana = IsUsableSpell(spell)
+    -- Forbearance causes a false / false return for Lay on Hands.  It really shouldn't...
     if (usable == false) and (nomana == false) then return nil end
 
     return bButton
 end
 
-function SB:SB_OnTooltipSetUnit(...)
+function SB:GetAttributeString(binding)
+        -- Break up the binding string into constituants
+    local bpart
+    local alt, ctrl, shift, button = false, false, false, ""
+    local count = 0
+    while string.find(binding, "+", 0, true) do
+        bpart, binding = strsplit("+", binding, 2)
+        if bpart == "Alt" then alt = true
+        elseif bpart == "Ctrl" then ctrl = true
+        elseif bpart == "Shift" then shift = true end
+        count = count + 1
+        if count >= 5 then break end
+    end
+    button = ButtonToButtonAttribute[binding]
+
+    local fmt = "%s%s%s"
+    local prefix = fmt:format(
+        (alt == true and "alt-" or ""),
+        (ctrl == true and "ctrl-" or ""),
+        (shift == true and "shift-" or ""))
+    return prefix, button
+end
+
+local TooltipUpdateTimer = nil
+function SB:SB_OnTooltipSetUnit(t)
     if not E.db.SpellBinder.SpellBinderEnabled then return end
 
-    local frameName = "ElvUF"
-    if (GetMouseFocus():GetName():sub(1, #frameName) ~= frameName) then return end
+    if not TooltipUpdateTimer then
+        TooltipUpdateTimer = self:ScheduleRepeatingTimer("UpdateTooltip", 0.1)
+    end
+
+    local hoverFrame = GetMouseFocus()
+    if not addon.TableContains(TooltipFrames, hoverFrame) then return end
 
     for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
         local button = SB:ShouldPutSpellInTooltip(k, v)
         if button then
-            print(button.." "..v)
             -- Get spell cooldown info
-            local start, duration, _, _ = GetSpellCooldown(v)
-            local color = {0, 0, 0}
+            local start, duration, _, _ = GetSpellCooldown(k)
+            local color = {0.2, 0.2, 0.2}
 
-            local leftText = ButtonMap[button]..": "..v
+            local leftText = ButtonMap[button]..": "..k
             -- TODO: Handle Costs other than mana
             if start > 0 and duration > 0 then
                 -- Spell is on cooldown, append cooldown to left text
-                color[1] = 1
+                color[1] = 0.8
                 local cd = start + duration - GetTime()
-                cd = cd - (cd % 1) -- bad rounding.  Don't care
-                leftText = leftText .. " (" .. tostring(cd) .. "s)"
+                if (cd > 5) then
+                    cd = cd - (cd % 1) -- bad rounding.  Don't care
+                else
+                    cd = string.format("%.2f", cd)
+                end
+
+                leftText = leftText .. " (" .. cd .. "s)"
             else
-                color[2] = 1
+                color[2] = 0.8
             end
 
             -- Get spell costs
-            local costs = GetSpellPowerCost(v)
+            local costs = GetSpellPowerCost(k)
 
             local rightText
             if costs[1] and costs[1].cost then
@@ -91,9 +165,95 @@ function SB:SB_OnTooltipSetUnit(...)
             end
 
             leftText = string.format("%-30s", leftText)
-            GameTooltip:AddDoubleLine(leftText, rightText, color[1], color[2], color[3], 0,0,1)
+            GameTooltip:AddDoubleLine(leftText, rightText, color[1], color[2], color[3], 0.5,0.2,0.8)
         end
     end
+end
+
+--------- ACTUAL CLICK CASTING STUFF ----------
+
+function SB:UpdateRegisteredClicks(button)
+    local direction = "AnyUp"
+
+    if button then
+        button:RegisterForClicks(direction)
+        button:EnableMouseWheel(true)
+        return
+    end
+
+    for button in pairs(CCFrames) do
+        button:RegisterForClicks(direction)
+        button:EnableMouseWheel(true)
+        return
+    end
+
+    for button in pairs(hcframes) do
+        button:RegisterForClicks(direction)
+        button:EnableMouseWheel(true)
+        return
+    end
+end
+
+function SB:GetClickAttributes()
+    local add = {
+        "local setupButton = self:GetFrameRef('sbsetup_button')",
+        "local button = setupButton or self"
+    }
+    local rem = {
+        "local setupButton = self:GetFrameRef('sbsetup_button')",
+        "local button = setupButton or self"
+    }
+
+    -- Apply all currently active bindings
+    for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
+        local prefix, button = SB:GetAttributeString(v)
+        local spellAttr = ButtonToSpellAttribute[button]
+        add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'spell')"
+        rem[#rem + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'nil')"
+        add[#add + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', '" .. k .. "')"
+        rem[#rem + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', 'nil')"
+    end
+
+    return table.concat(add, "\n"), table.concat(rem, "\n")
+end
+
+function addon:UpdateAllAttributes()
+    -- Remove all currently active bindings
+    for k, v in pairs(CCFrames) do
+        if v ~= nil and v ~= false then
+            GroupHeader:SetFrameRef("sbsetup_button", k)
+            GroupHeader:Execute(GroupHeader:GetAttribute("remove_clicks"), k)
+        end
+    end
+
+    -- Set up new clicks
+    local setup, remove = SB:GetClickAttributes()
+    GroupHeader:SetAttribute("setup_clicks", setup)
+    GroupHeader:SetAttribute("remove_clicks", remove)
+
+    for k, v in pairs(CCFrames) do
+        if v ~= nil and v ~= false then
+            GroupHeader:SetFrameRef("sbsetup_button", k)
+            GroupHeader:Execute(GroupHeader:GetAttribute("setup_clicks"), k)
+        end
+    end
+end
+
+function SB:RegisterFrame(button)
+    CCFrames[button] = true
+
+    SB:UpdateRegisteredClicks(button)
+
+    -- TODO:  Figure these out
+    --GroupHeader:WrapScript(button, "OnEnter", GroupHeader:GetAttribute("setup_onenter"))
+    --GroupHeader:WrapScript(button, "OnLeave", GroupHeader:GetAttribute("setup_onleave"))
+
+    GroupHeader:SetFrameRef("sbsetup_button", button)
+    GroupHeader:Execute(GroupHeader:GetAttribute("setup_clicks"), button)
+end
+
+function SB:UnregisterFrame(button)
+    CCFrames[button] = nil
 end
 
 --------- MAIN ----------
@@ -124,16 +284,37 @@ function SB:OnPlayerInventoryChanged()
     -- TODO: Update items available for binding
 end
 
-function SB:ModifierStateChanged(_, key)
+function SB:UpdateTooltip(_, key)
     if UnitExists("mouseover") then
         GameTooltip:SetUnit('mouseover')
     end
 end
 
+
 function SB:Initialize()
     C:InsertOptions()
-    self:RegisterEvent("MODIFIER_STATE_CHANGED", "ModifierStateChanged"); -- event, key, state
 
+    local setup, remove = SB:GetClickAttributes()
+    GroupHeader:SetAttribute("setup_clicks", setup)
+    GroupHeader:SetAttribute("remove_clicks", remove)
+
+    local oldClickCastFrames = ClickCastFrames
+    ClickCastFrames = setmetatable({}, {__newindex = function(_, k, _)
+        if v == nil or v == false then
+            SB:UnregisterFrame(k)
+        else
+            SB:RegisterFrame(k)
+        end
+    end})
+
+    if oldClickCastFrames then
+        for frame, options in pairs(oldClickCastFrames) do
+            self:RegisterFrame(frame, options)
+        end
+    end
+    addon.EnableBlizzardFrames()
+
+    self:RegisterEvent("MODIFIER_STATE_CHANGED", "UpdateTooltip"); -- event, key, state
     self:RegisterEvent("PLAYER_LOGIN", "OnPlayerEnterWorld");
     self:RegisterEvent("PLAYER_LEVEL_UP", "OnPlayerLevelUp");
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnterWorld");
@@ -141,6 +322,12 @@ function SB:Initialize()
     self:RegisterEvent("UNIT_INVENTORY_CHANGED", "OnPlayerInventoryChanged");
 
     self:SecureHookScript(GameTooltip, 'OnTooltipSetUnit', 'SB_OnTooltipSetUnit')
+    self:SecureHookScript(GameTooltip, 'OnHide', function()
+        self:CancelTimer(TooltipUpdateTimer)
+        TooltipUpdateTimer = nil
+    end)
+
+    print(setup)
 end
 
 E:RegisterModule(SB:GetName())
