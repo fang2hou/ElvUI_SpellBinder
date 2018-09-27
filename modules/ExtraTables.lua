@@ -3,10 +3,9 @@
     Copyright (C) Nîne-Shu'halo, All rights reserved.
 ]]--
 
-local E, L, V, P, G = unpack(ElvUI) -- Engine, Locales, PrivateDB, ProfileDB, GlobalDB
+local addonName, addon = ...
 
-V.SpellBinder = {}
-V.SpellBinder.HealingSpells = {
+addon.HealingSpells = {
     ["PALADIN"] = {
         ["BEACON_OF_VIRTUE"] = "Beacon of Virtue",
         ["FLASH_OF_LIGHT"] = "Flash of Light",
@@ -48,7 +47,7 @@ V.SpellBinder.HealingSpells = {
     },
 }
 
-V.SpellBinder.OtherSpells = {
+addon.OtherSpells = {
     ["PALADIN"] = {
         ["ABSOLUTION"] = "Absolution",
         ["BLESSING_OF_FREEDOM"] = "Blessing of Freedom",
@@ -67,7 +66,6 @@ V.SpellBinder.OtherSpells = {
         ["PURIFY"] = "Purify",
         ["PURIFY_DISEASE"] = "Purify Disease",
         ["RESURRECTION"] = "Resurrection",
-        ["DESPERATE_PRAYER"] = "Desperate Prayer",
         ["PAIN_SUPPRESSION"] = "Pain Suppression",
         ["LEAP_OF_FAITH"] = "Leap of Faith",
         ["MASS_RESURRECTION"] = "Mass Resurrection",
@@ -111,4 +109,4 @@ V.SpellBinder.OtherSpells = {
     },
 }
 
-V.SpellBinder.Items = { }
+addon.Items = { }

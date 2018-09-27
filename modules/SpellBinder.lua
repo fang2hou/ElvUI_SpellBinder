@@ -123,6 +123,7 @@ end
 local TooltipUpdateTimer = nil
 function SB:SB_OnTooltipSetUnit(t)
     if not E.db.SpellBinder.SpellBinderEnabled then return end
+    if not E.db.SpellBinder.ModifyTooltips then return end
 
     if not TooltipUpdateTimer then
         TooltipUpdateTimer = self:ScheduleRepeatingTimer("UpdateTooltip", 0.1)
@@ -184,13 +185,11 @@ function SB:UpdateRegisteredClicks(button)
     for button in pairs(CCFrames) do
         button:RegisterForClicks(direction)
         button:EnableMouseWheel(true)
-        return
     end
 
     for button in pairs(hcframes) do
         button:RegisterForClicks(direction)
         button:EnableMouseWheel(true)
-        return
     end
 end
 
@@ -228,25 +227,17 @@ function SB:GetClickAttributes()
 end
 
 function addon:UpdateAllAttributes()
+    if not E.db.SpellBinder.SpellBinderEnabled then return end
+
     -- Remove all currently active bindings
-    for k, v in pairs(CCFrames) do
-        if v ~= nil and v ~= false then
-            GroupHeader:SetFrameRef("sbsetup_button", k)
-            GroupHeader:Execute(GroupHeader:GetAttribute("remove_clicks"), k)
-        end
-    end
+    addon.DisableClicks()
 
     -- Set up new clicks
     local setup, remove = SB:GetClickAttributes()
     GroupHeader:SetAttribute("setup_clicks", setup)
     GroupHeader:SetAttribute("remove_clicks", remove)
 
-    for k, v in pairs(CCFrames) do
-        if v ~= nil and v ~= false then
-            GroupHeader:SetFrameRef("sbsetup_button", k)
-            GroupHeader:Execute(GroupHeader:GetAttribute("setup_clicks"), k)
-        end
-    end
+    addon.EnableClicks()
 end
 
 function SB:RegisterFrame(button)
@@ -258,12 +249,35 @@ function SB:RegisterFrame(button)
     --GroupHeader:WrapScript(button, "OnEnter", GroupHeader:GetAttribute("setup_onenter"))
     --GroupHeader:WrapScript(button, "OnLeave", GroupHeader:GetAttribute("setup_onleave"))
 
-    GroupHeader:SetFrameRef("sbsetup_button", button)
-    GroupHeader:Execute(GroupHeader:GetAttribute("setup_clicks"), button)
+    if E.db.SpellBinder.SpellBinderEnabled then
+        GroupHeader:SetFrameRef("sbsetup_button", button)
+        GroupHeader:Execute(GroupHeader:GetAttribute("setup_clicks"), button)
+    end
 end
 
 function SB:UnregisterFrame(button)
+    GroupHeader:SetFrameRef("sbsetup_button", button)
+    GroupHeader:Execute(GroupHeader:GetAttribute("remove_clicks"), button)
+
     CCFrames[button] = nil
+end
+
+function addon.EnableClicks()
+    for k, v in pairs(CCFrames) do
+        if v ~= nil and v ~= false then
+            GroupHeader:SetFrameRef("sbsetup_button", k)
+            GroupHeader:Execute(GroupHeader:GetAttribute("setup_clicks"), k)
+        end
+    end
+end
+
+function addon.DisableClicks()
+    for k, v in pairs(CCFrames) do
+        if v ~= nil and v ~= false then
+            GroupHeader:SetFrameRef("sbsetup_button", k)
+            GroupHeader:Execute(GroupHeader:GetAttribute("remove_clicks"), k)
+        end
+    end
 end
 
 --------- MAIN ----------
@@ -277,7 +291,7 @@ end
 
 function SB:OnPlayerEnterWorld()
     local _, englishClass, _ = UnitClass("player")
-    E.private.SpellBinder.PlayerClass = englishClass
+    addon.PlayerClass = englishClass
     --C_Timer.After(10, function() SB:UpdateBindingTables() end)
     SB:UpdateBindingTables()
 end
