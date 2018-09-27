@@ -15,11 +15,12 @@ P["SpellBinder"] = {
 	["SpecBasedBindings"] = false,
 	["SpellBinderEnabled"] = true,
     ["ModifyTooltips"] = true,
-    ["ActiveBindings"] = {}
+    ["ActiveBindings"] = {},
+    ["ActiveSpecBindings"] = {}
 }
 
 V["SpellBinder"] = {
-    ["ActiveBindings"] = {}
+    ["ActiveBindingsArgs"] = {}
 }
 
 local SelectedHealAbility = ""
@@ -30,6 +31,8 @@ local UsableHealingSpells = {}
 local UsableOtherSpells = {}
 
 addon.PlayerClass = ""
+addon.PlayerSpec = ""
+addon.ActiveBindingsTable = E.db.SpellBinder.ActiveBindings
 
 E.PopupDialogs["RESET_SB_DATA"] = {
     text = L["Accepting this will reset all of your SpellBinder data. Are you sure?"],
@@ -56,9 +59,10 @@ function C:PurgeTables(purgeAll)
     -- These tables should always start empty
     UsableHealingSpells = table.wipe(UsableHealingSpells)
     UsableOtherSpells = table.wipe(UsableOtherSpells)
-    E.private.SpellBinder.ActiveBindings = table.wipe(E.private.SpellBinder.ActiveBindings)
+    E.private.SpellBinder.ActiveBindingsArgs = table.wipe(E.private.SpellBinder.ActiveBindingsArgs)
     if (purgeAll) then
         E.db.SpellBinder.ActiveBindings = table.wipe(E.db.SpellBinder.ActiveBindings)
+        E.db.SpellBinder.ActiveSpecBindings = table.wipe(E.db.SpellBinder.ActiveSpecBindings)
     end
 end
 
@@ -120,7 +124,7 @@ function C:UpdateActiveBindingsGroup(ability, text)
     end
 
     local abilityIDString = ability:gsub("%s+", "")
-    E.private.SpellBinder.ActiveBindings[abilityIDString] = {
+    E.private.SpellBinder.ActiveBindingsArgs[abilityIDString] = {
         order = 0,
         type = "group",
         name = ability .. " (" .. text .. ")",
@@ -148,8 +152,9 @@ function C:UpdateActiveBindingsGroup(ability, text)
                 name = L["Delete"],
                 buttonElvUI = true,
                 func = function()
-                    E.db.SpellBinder.ActiveBindings[ability] = nil
-                    E.private.SpellBinder.ActiveBindings[abilityIDString] = nil
+                    --E.db.SpellBinder.ActiveBindings[ability] = nil
+                    addon.ActiveBindingsTable[ability] = nil
+                    E.private.SpellBinder.ActiveBindingsArgs[abilityIDString] = nil
                     ACR:NotifyChange("ElvUI")
                     addon:UpdateAllAttributes()
                 end,
@@ -157,14 +162,15 @@ function C:UpdateActiveBindingsGroup(ability, text)
             },
         },
     }
-    E.Options.args.SpellBinder.args.bindingsGroup.args.activeBindings.args = E.private.SpellBinder.ActiveBindings
+    E.Options.args.SpellBinder.args.bindingsGroup.args.activeBindings.args = E.private.SpellBinder.ActiveBindingsArgs
     ACR:NotifyChange("ElvUI")
 end
 
 function C:UpdateActiveBindings()
-    E.private.SpellBinder.ActiveBindings = table.wipe(E.private.SpellBinder.ActiveBindings)
+    E.private.SpellBinder.ActiveBindingsArgs = table.wipe(E.private.SpellBinder.ActiveBindingsArgs)
 
-    for key, value in pairs(E.db.SpellBinder.ActiveBindings) do
+    --for key, value in pairs(E.db.SpellBinder.ActiveBindings) do
+    for key, value in pairs(addon.ActiveBindingsTable) do
         C:UpdateActiveBindingsGroup(key, value)
     end
 
@@ -180,9 +186,8 @@ function C:BindAbility(table, selected)
     local text = addon.GetBinding()
     -- TODO: Support items and commands
 
-    --E.db.SpellBinder.ActiveBindings[table[E.private.SpellBinder.PlayerClass][selected]] = text
-    E.db.SpellBinder.ActiveBindings[table[selected]] = text
-    --C:UpdateActiveBindingsGroup(table[E.private.SpellBinder.PlayerClass][selected], text)
+    --E.db.SpellBinder.ActiveBindings[table[selected]] = text
+    addon.ActiveBindingsTable[table[selected]] = text
     C:UpdateActiveBindingsGroup(table[selected], text)
 
 end
@@ -226,7 +231,6 @@ function C:InsertOptions()
                         desc = "Swap profiles based on talent specialization",
                         get = function(info) return E.db.SpellBinder.SpecBasedBindings end,
                         set = function(info, value) E.db.SpellBinder.SpecBasedBindings = value end,
-                        disabled = true
                     },
                     modifyTooltips = {
                         order = 2,
@@ -275,7 +279,7 @@ function C:InsertOptions()
                         name = L["Active Bindings"],
                         customWidth = 500,
                         childGroups = "tree",
-                        args = E.private.SpellBinder.ActiveBindings,
+                        args = E.private.SpellBinder.ActiveBindingsArgs,
                     },
                     otherSpells = {
                         order = 4,

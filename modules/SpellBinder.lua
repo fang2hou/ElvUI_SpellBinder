@@ -132,7 +132,8 @@ function SB:SB_OnTooltipSetUnit(t)
     local hoverFrame = GetMouseFocus()
     if not addon.TableContains(TooltipFrames, hoverFrame) then return end
 
-    for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
+    --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
+    for k, v in pairs(addon.ActiveBindingsTable) do
         local button = SB:ShouldPutSpellInTooltip(k, v)
         if button then
             -- Get spell cooldown info
@@ -204,7 +205,8 @@ function SB:GetClickAttributes()
     }
 
     -- Apply all currently active bindings
-    for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
+    --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
+    for k, v in pairs(addon.ActiveBindingsTable) do
         local prefix, button = SB:GetAttributeString(v)
         local spellAttr = ButtonToSpellAttribute[button]
 
@@ -291,7 +293,18 @@ end
 
 function SB:OnPlayerEnterWorld()
     local _, englishClass, _ = UnitClass("player")
-    addon.PlayerClass = englishClass
+    addon.PlayerClass = englishClass or "None"
+
+    if E.db.SpellBinder.SpecBasedBindings then
+        local currentSpec = GetSpecialization()
+        local _, playerSpec = GetSpecializationInfo(currentSpec)
+        addon.PlayerSpec = playerSpec or "None"
+        if E.db.SpellBinder.ActiveSpecBindings[playerSpec] == nil then
+            E.db.SpellBinder.ActiveSpecBindings[playerSpec] = {}
+        end
+        addon.ActiveBindingsTable = E.db.SpellBinder.ActiveSpecBindings[playerSpec]
+    end
+
     --C_Timer.After(10, function() SB:UpdateBindingTables() end)
     SB:UpdateBindingTables()
 end
@@ -301,7 +314,21 @@ function SB:OnPlayerLevelUp()
 end
 
 function SB:OnPlayerSpecializationChanged()
-    SB:UpdateBindingTables()
+    if E.db.SpellBinder.SpecBasedBindings then
+        local currentSpec = GetSpecialization()
+        local _, playerSpec = GetSpecializationInfo(currentSpec)
+        addon.PlayerSpec = playerSpec or "None"
+        if E.db.SpellBinder.ActiveSpecBindings[playerSpec] == nil then
+            E.db.SpellBinder.ActiveSpecBindings[playerSpec] = {}
+        end
+        addon.ActiveBindingsTable = E.db.SpellBinder.ActiveSpecBindings[playerSpec]
+        SB:UpdateBindingTables()
+        addon:DisableClicks()
+        local setup, remove = SB:GetClickAttributes()
+        GroupHeader:SetAttribute("setup_clicks", setup)
+        GroupHeader:SetAttribute("remove_clicks", remove)
+        addon:EnableClicks()
+    end
 end
 
 function SB:OnPlayerInventoryChanged()
