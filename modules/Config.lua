@@ -226,6 +226,7 @@ function C:InsertOptions()
                         desc = "Swap profiles based on talent specialization",
                         get = function(info) return E.db.SpellBinder.SpecBasedBindings end,
                         set = function(info, value) E.db.SpellBinder.SpecBasedBindings = value end,
+                        disabled = true
                     },
                     modifyTooltips = {
                         order = 2,
