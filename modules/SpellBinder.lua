@@ -133,14 +133,14 @@ function SB:SB_OnTooltipSetUnit(t)
     if not addon:TableContains(TooltipFrames, hoverFrame) then return end
 
     --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
-    for k, v in pairs(addon.ActiveBindingsTable) do
-        local button = SB:ShouldPutSpellInTooltip(k, v)
+    for _, v in pairs(addon.ActiveBindingsTable) do
+        local button = SB:ShouldPutSpellInTooltip(v.ability, v.binding)
         if button then
             -- Get spell cooldown info
-            local start, duration, _, _ = GetSpellCooldown(k)
+            local start, duration, _, _ = GetSpellCooldown(v.ability)
             local color = {0.2, 0.2, 0.2}
 
-            local leftText = ButtonMap[button]..": "..k
+            local leftText = ButtonMap[button]..": "..v.ability
             -- TODO: Handle Costs other than mana
             if start > 0 and duration > 0 then
                 -- Spell is on cooldown, append cooldown to left text
@@ -158,7 +158,7 @@ function SB:SB_OnTooltipSetUnit(t)
             end
 
             -- Get spell costs
-            local costs = GetSpellPowerCost(k)
+            local costs = GetSpellPowerCost(v.ability)
 
             local rightText
             if costs[1] and costs[1].cost then
@@ -207,22 +207,38 @@ function SB:GetClickAttributes()
     -- Apply all currently active bindings
     --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
     for k, v in pairs(addon.ActiveBindingsTable) do
-        local prefix, button = SB:GetAttributeString(v)
+        local prefix, button = SB:GetAttributeString(v.binding)
         local spellAttr = ButtonToSpellAttribute[button]
 
-        if prefix == "" and button == "type1" then
-            rem[#rem + 1] = "button:SetAttribute('type1', 'target')"
-            rem[#rem + 1] = "button:SetAttribute('spell1', 'nil')"
-        elseif prefix == "" and button == "type2" then
-            rem[#rem + 1] = "button:SetAttribute('type2', 'togglemenu')"
-            rem[#rem + 1] = "button:SetAttribute('spell2', 'nil')"
-        else
-            rem[#rem + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'nil')"
-            rem[#rem + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', 'nil')"
-        end
+        if v.type == "spell" then
+            if prefix == "" and button == "type1" then
+                rem[#rem + 1] = "button:SetAttribute('type1', 'target')"
+                rem[#rem + 1] = "button:SetAttribute('spell1', 'nil')"
+            elseif prefix == "" and button == "type2" then
+                rem[#rem + 1] = "button:SetAttribute('type2', 'togglemenu')"
+                rem[#rem + 1] = "button:SetAttribute('spell2', 'nil')"
+            else
+                rem[#rem + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'nil')"
+                rem[#rem + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', 'nil')"
+            end
 
-        add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'spell')"
-        add[#add + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', '" .. k .. "')"
+            add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'spell')"
+            add[#add + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', '" .. v.ability .. "')"
+        elseif v.type == "command" then
+            if k == "ASSIST" then
+                add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'assist')"
+                rem[#rem + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'nil')"
+            elseif k == "FOCUS" then
+                add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'focus')"
+                rem[#rem + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'nil')"
+            elseif k == "TARGET" then
+                add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'target')"
+                rem[#rem + 1] = "button:SetAttribute('type1', 'target')"
+            elseif k == "MENU" then
+                add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'togglemenu')"
+                rem[#rem + 1] = "button:SetAttribute('type2', 'togglemenu')"
+            end
+        end
     end
 
     return table.concat(add, "\n"), table.concat(rem, "\n")

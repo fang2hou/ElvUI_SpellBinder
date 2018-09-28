@@ -114,26 +114,29 @@ end
 function C:UpdateCommandTable() end
 function C:UpdateItemTable() end
 
-function C:UpdateActiveBindingsGroup(ability, text)
+function C:UpdateActiveBindingsGroup(key, binding)
     local i = 1
     local spellText = ""
 
-    local usable, nomana = IsUsableSpell(ability)
-    if not usable and not nomana then return end
+    addon:dump(binding)
+    if binding.type == "spell" then
+        local usable, nomana = IsUsableSpell(binding.ability)
+        if not usable and not nomana then return end
 
-    while true do
-        local spellName = GetSpellBookItemName(i, BOOKTYPE_SPELL)
-        if not spellName then do break end end
+        while true do
+            local spellName = GetSpellBookItemName(i, BOOKTYPE_SPELL)
+            if not spellName then do break end end
 
-        if spellName == ability then spellText = addon:GetSpellText(i, BOOKTYPE_SPELL); end
-        i = i + 1
+            if spellName == binding.ability then spellText = addon:GetSpellText(i, BOOKTYPE_SPELL); end
+            i = i + 1
+        end
     end
 
-    local abilityIDString = ability:gsub("%s+", "")
+    local abilityIDString = binding.ability:gsub("%s+", "")
     E.private.SpellBinder.ActiveBindingsArgs[abilityIDString] = {
         order = 0,
         type = "group",
-        name = ability .. " (" .. text .. ")",
+        name = binding.ability .. " (" .. binding.binding .. ")",
         args = {
             abilityDesc = {
                 order = 1,
@@ -144,7 +147,7 @@ function C:UpdateActiveBindingsGroup(ability, text)
             abilityBinding = {
                 order = 2,
                 type = "description",
-                name = L["Bound to: " .. text],
+                name = L["Bound to: " .. binding.binding],
                 fontSize = "medium",
             },
             spacer = {
@@ -158,8 +161,7 @@ function C:UpdateActiveBindingsGroup(ability, text)
                 name = L["Delete"],
                 buttonElvUI = true,
                 func = function()
-                    --E.db.SpellBinder.ActiveBindings[ability] = nil
-                    addon.ActiveBindingsTable[ability] = nil
+                    addon.ActiveBindingsTable[key] = nil
                     E.private.SpellBinder.ActiveBindingsArgs[abilityIDString] = nil
                     ACR:NotifyChange("ElvUI")
                     addon:UpdateAllAttributes()
@@ -183,7 +185,7 @@ function C:UpdateActiveBindings()
     ACR:NotifyChange("ElvUI")
 end
 
-function C:BindAbility(table, selected)
+function C:BindAbility(table, selected, type)
     if selected == nil or selected == "" then
         UIErrorsFrame:AddMessage("Error: No ability selected", 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 0)
         return
@@ -192,8 +194,12 @@ function C:BindAbility(table, selected)
     local text = addon:GetBinding()
     -- TODO: Support items and commands
 
-    addon.ActiveBindingsTable[table[selected]] = text
-    C:UpdateActiveBindingsGroup(table[selected], text)
+    addon.ActiveBindingsTable[selected] = nil
+    addon.ActiveBindingsTable[selected] = {}
+    addon.ActiveBindingsTable[selected].ability = table[selected]
+    addon.ActiveBindingsTable[selected].binding = text
+    addon.ActiveBindingsTable[selected].type = type
+    C:UpdateActiveBindingsGroup(selected, addon.ActiveBindingsTable[selected])
 
 end
 
@@ -279,7 +285,7 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableHealingSpells, SelectedHealAbility)
+                            C:BindAbility(UsableHealingSpells, SelectedHealAbility, "spell")
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
@@ -308,7 +314,7 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableOtherSpells, SelectedOtherAbility)
+                            C:BindAbility(UsableOtherSpells, SelectedOtherAbility, "spell")
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
@@ -329,7 +335,7 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            --C:BindAbility(UsableItems, SelectedItem)
+                            --C:BindAbility(UsableItems, SelectedItem, "item")
                             --addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
@@ -350,7 +356,7 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableCommands, SelectedCommand)
+                            C:BindAbility(UsableCommands, SelectedCommand, "command")
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
