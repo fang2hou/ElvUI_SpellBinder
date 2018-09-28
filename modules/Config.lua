@@ -118,7 +118,6 @@ function C:UpdateActiveBindingsGroup(key, binding)
     local i = 1
     local spellText = ""
 
-    addon:dump(binding)
     if binding.type == "spell" then
         local usable, nomana = IsUsableSpell(binding.ability)
         if not usable and not nomana then return end
@@ -187,12 +186,21 @@ end
 
 function C:BindAbility(table, selected, type)
     if selected == nil or selected == "" then
-        UIErrorsFrame:AddMessage("Error: No ability selected", 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 0)
+        UIErrorsFrame:AddMessage("Error: No ability selected", 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 5)
         return
     end
 
     local text = addon:GetBinding()
     -- TODO: Support items and commands
+
+    for _, v in pairs(addon.ActiveBindingsTable) do
+         if v.binding == text then
+             local msg = "ElvUI_SpellBinder: " .. v.ability .. " is already bound to " .. text
+             UIErrorsFrame:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 5)
+             DEFAULT_CHAT_FRAME:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"])
+             return
+        end
+    end
 
     addon.ActiveBindingsTable[selected] = nil
     addon.ActiveBindingsTable[selected] = {}
