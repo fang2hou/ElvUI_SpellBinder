@@ -130,7 +130,7 @@ function SB:SB_OnTooltipSetUnit(t)
     end
 
     local hoverFrame = GetMouseFocus()
-    if not addon.TableContains(TooltipFrames, hoverFrame) then return end
+    if not addon:TableContains(TooltipFrames, hoverFrame) then return end
 
     --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
     for k, v in pairs(addon.ActiveBindingsTable) do
@@ -232,14 +232,14 @@ function addon:UpdateAllAttributes()
     if not E.db.SpellBinder.SpellBinderEnabled then return end
 
     -- Remove all currently active bindings
-    addon.DisableClicks()
+    addon:DisableClicks()
 
     -- Set up new clicks
     local setup, remove = SB:GetClickAttributes()
     GroupHeader:SetAttribute("setup_clicks", setup)
     GroupHeader:SetAttribute("remove_clicks", remove)
 
-    addon.EnableClicks()
+    addon:EnableClicks()
 end
 
 function SB:RegisterFrame(button)
@@ -264,7 +264,7 @@ function SB:UnregisterFrame(button)
     CCFrames[button] = nil
 end
 
-function addon.EnableClicks()
+function addon:EnableClicks()
     for k, v in pairs(CCFrames) do
         if v ~= nil and v ~= false then
             GroupHeader:SetFrameRef("sbsetup_button", k)
@@ -273,7 +273,7 @@ function addon.EnableClicks()
     end
 end
 
-function addon.DisableClicks()
+function addon:DisableClicks()
     for k, v in pairs(CCFrames) do
         if v ~= nil and v ~= false then
             GroupHeader:SetFrameRef("sbsetup_button", k)
@@ -307,6 +307,11 @@ function SB:OnPlayerEnterWorld()
 
     --C_Timer.After(10, function() SB:UpdateBindingTables() end)
     SB:UpdateBindingTables()
+    addon:DisableClicks()
+    local setup, remove = SB:GetClickAttributes()
+    GroupHeader:SetAttribute("setup_clicks", setup)
+    GroupHeader:SetAttribute("remove_clicks", remove)
+    addon:EnableClicks()
 end
 
 function SB:OnPlayerLevelUp()
@@ -314,6 +319,7 @@ function SB:OnPlayerLevelUp()
 end
 
 function SB:OnPlayerSpecializationChanged()
+    addon.ActiveBindingsTable = E.db.SpellBinder.ActiveBindings
     if E.db.SpellBinder.SpecBasedBindings then
         local currentSpec = GetSpecialization()
         local _, playerSpec = GetSpecializationInfo(currentSpec)
@@ -322,13 +328,14 @@ function SB:OnPlayerSpecializationChanged()
             E.db.SpellBinder.ActiveSpecBindings[playerSpec] = {}
         end
         addon.ActiveBindingsTable = E.db.SpellBinder.ActiveSpecBindings[playerSpec]
-        SB:UpdateBindingTables()
-        addon:DisableClicks()
-        local setup, remove = SB:GetClickAttributes()
-        GroupHeader:SetAttribute("setup_clicks", setup)
-        GroupHeader:SetAttribute("remove_clicks", remove)
-        addon:EnableClicks()
     end
+
+    SB:UpdateBindingTables()
+    addon:DisableClicks()
+    local setup, remove = SB:GetClickAttributes()
+    GroupHeader:SetAttribute("setup_clicks", setup)
+    GroupHeader:SetAttribute("remove_clicks", remove)
+    addon:EnableClicks()
 end
 
 function SB:OnPlayerInventoryChanged()
@@ -344,6 +351,10 @@ end
 
 function SB:Initialize()
     C:InsertOptions()
+
+    if addon.ActiveBindingsTable == nil then
+        addon.ActiveBindingsTable = E.db.SpellBinder.ActiveBindings
+    end
 
     local setup, remove = SB:GetClickAttributes()
     GroupHeader:SetAttribute("setup_clicks", setup)
@@ -363,7 +374,7 @@ function SB:Initialize()
             self:RegisterFrame(frame, options)
         end
     end
-    addon.EnableBlizzardFrames()
+    addon:EnableBlizzardFrames()
 
     self:RegisterEvent("MODIFIER_STATE_CHANGED", "UpdateTooltip"); -- event, key, state
     self:RegisterEvent("PLAYER_LOGIN", "OnPlayerEnterWorld");
@@ -377,6 +388,8 @@ function SB:Initialize()
         self:CancelTimer(TooltipUpdateTimer)
         TooltipUpdateTimer = nil
     end)
+
+    addon:RegisterMessage("SPEC_CHANGED", function() SB:OnPlayerSpecializationChanged() end)
 end
 
 E:RegisterModule(SB:GetName())

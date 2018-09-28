@@ -30,6 +30,13 @@ local SelectedItem = ""
 local UsableHealingSpells = {}
 local UsableOtherSpells = {}
 
+local UsableCommands = {
+    ["ASSIST"] = "Assist",
+    ["FOCUS"] = "Focus",
+    ["MENU"] = "Menu",
+    ["TARGET"] = "Target"
+}
+
 addon.PlayerClass = ""
 addon.PlayerSpec = ""
 addon.ActiveBindingsTable = E.db.SpellBinder.ActiveBindings
@@ -78,7 +85,7 @@ function C:UpdateHealingSpellSelect()
         function(k, v) C:SetIfUsable(UsableHealingSpells, k, v) end)
 
     E.Options.args.SpellBinder.args.bindingsGroup.args.healingSpells.values = UsableHealingSpells
-    local a = addon.TableKeysToSortedArray(UsableHealingSpells)
+    local a = addon:TableKeysToSortedArray(UsableHealingSpells)
 
     SelectedHealAbility = a[1]
 
@@ -97,7 +104,7 @@ function C:UpdateOtherSpellSelect()
         function(k, v) C:SetIfUsable(UsableOtherSpells, k, v) end)
 
     E.Options.args.SpellBinder.args.bindingsGroup.args.otherSpells.values = UsableOtherSpells
-    local a = addon.TableKeysToSortedArray(UsableOtherSpells)
+    local a = addon:TableKeysToSortedArray(UsableOtherSpells)
 
     SelectedOtherAbility = a[1]
 
@@ -118,8 +125,7 @@ function C:UpdateActiveBindingsGroup(ability, text)
         local spellName = GetSpellBookItemName(i, BOOKTYPE_SPELL)
         if not spellName then do break end end
 
-        if spellName == ability then spellText = addon.GetSpellText(i, BOOKTYPE_SPELL); end
-
+        if spellName == ability then spellText = addon:GetSpellText(i, BOOKTYPE_SPELL); end
         i = i + 1
     end
 
@@ -183,10 +189,9 @@ function C:BindAbility(table, selected)
         return
     end
 
-    local text = addon.GetBinding()
+    local text = addon:GetBinding()
     -- TODO: Support items and commands
 
-    --E.db.SpellBinder.ActiveBindings[table[selected]] = text
     addon.ActiveBindingsTable[table[selected]] = text
     C:UpdateActiveBindingsGroup(table[selected], text)
 
@@ -218,9 +223,9 @@ function C:InsertOptions()
                         get = function(info) return E.db.SpellBinder.SpellBinderEnabled end,
                         set = function(info, value) E.db.SpellBinder.SpellBinderEnabled = value
                             if value == true then
-                                addon.EnableClicks()
+                                addon:EnableClicks()
                             else
-                                addon.DisableClicks()
+                                addon:DisableClicks()
                             end
                         end
                     },
@@ -230,7 +235,13 @@ function C:InsertOptions()
                         name = L["Spec Based Bindings"],
                         desc = "Swap profiles based on talent specialization",
                         get = function(info) return E.db.SpellBinder.SpecBasedBindings end,
-                        set = function(info, value) E.db.SpellBinder.SpecBasedBindings = value end,
+                        set = function(info, value)
+                            local oldValue = E.db.SpellBinder.SpecBasedBindings
+                            E.db.SpellBinder.SpecBasedBindings = value
+                            if oldValue ~= nil then
+                                addon:FireMessage("SPEC_CHANGED")
+                            end
+                        end,
                     },
                     modifyTooltips = {
                         order = 2,
@@ -330,12 +341,7 @@ function C:InsertOptions()
                         desc = L["List of available commands"],
                         get = function(info) return SelectedCommand end,
                         set = function(info, value) SelectedCommand = value end,
-                        values = {
-                            ["ASSIST"] = "Assist",
-                            ["FOCUS"] = "Focus",
-                            ["MENU"] = "Menu",
-                            ["TARGET"] = "Target"
-                        },
+                        values = UsableCommands,
                     },
                     commandsBind = {
                         order = 9,
@@ -344,8 +350,8 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            --C:BindAbility(UsableCommands, SelectedCommand)
-                            --addon:UpdateAllAttributes()
+                            C:BindAbility(UsableCommands, SelectedCommand)
+                            addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },

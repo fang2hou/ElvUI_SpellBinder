@@ -1,15 +1,16 @@
+local E, L, V, P, G = unpack(ElvUI) -- Engine, Locales, PrivateDB, ProfileDB, GlobalDB
 
 local addonName, addon = ...
 
 -- Prints all the key value pairs in the given table (See python's dir() function)
-function addon.dir(t)
+function addon:dir(t)
     for k, v in pairs(t) do
         print(k, v)
     end
 end
 
 -- Returns the length of the given table
-function addon.TableLength(t)
+function addon:TableLength(t)
     local count = 0
     for k, v in pairs(t) do
         count = count + 1
@@ -18,7 +19,7 @@ function addon.TableLength(t)
 end
 
 local tooltip = CreateFrame("GameTooltip", "SpellScanTooltip", UIParent, "GameTooltipTemplate")
-function addon.GetSpellText(spellNum, bookType)
+function addon:GetSpellText(spellNum, bookType)
     tooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
     tooltip:ClearLines()
     tooltip:SetSpellBookItem(spellNum, bookType)
@@ -42,7 +43,7 @@ function addon.GetSpellText(spellNum, bookType)
     return n
 end
 
-function addon.GetBinding()
+function addon:GetBinding()
     local shift = ""
     local ctrl = ""
     local alt = ""
@@ -69,7 +70,7 @@ end
 
 -- Print contents of `tbl`, with indentation.
 -- `indent` sets the initial level of indentation.
-function addon.Dump (tbl, indent)
+function addon:Dump (tbl, indent)
     if not indent then indent = 0 end
     for k, v in pairs(tbl) do
         formatting = string.rep("  ", indent) .. k .. ": "
@@ -86,7 +87,7 @@ function addon.Dump (tbl, indent)
     end
 end
 
-function addon.TableKeysToSortedArray(t)
+function addon:TableKeysToSortedArray(t)
     local a = {}
     for k in pairs(t) do table.insert(a, k) end
     table.sort(a)
@@ -94,7 +95,30 @@ function addon.TableKeysToSortedArray(t)
     return a
 end
 
-function addon.TableContains(t, key)
+function addon:TableContains(t, key)
     if t == nil then return false end
     return t[key] ~= nil
+end
+
+local messageMap = {}
+
+function addon:RegisterMessage(name, handler)
+    assert(messageMap[name] == nil, "Attempt to re-register message: " .. tostring(name))
+    messageMap[name] = handler and handler or name
+end
+
+function addon:UnregisterMessage(name)
+    assert(type(event) == "string", "Invalid argument to 'UnregisterMessage'")
+    messageMap[name] = nil
+end
+
+function addon:FireMessage(name, ...)
+    assert(type(name) == "string", "Invalid argument to 'FireMessage'")
+    local handler = messageMap[name]
+    local handler_t = type(handler)
+    if handler_t == "function" then
+        handler(name, ...)
+    elseif handler_t == "string" and addon[handler] then
+        addon[handler](addon, event, ...)
+    end
 end
