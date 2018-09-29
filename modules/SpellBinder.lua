@@ -146,7 +146,6 @@ function SB:SB_OnTooltipSetUnit(t)
             local rColor = E.db.SpellBinder.TTCostColor
 
             local leftText = ButtonMap[button]..": "..v.ability
-            -- TODO: Handle Costs other than mana
             if start > 0 and duration > 0 then
                 -- Spell is on cooldown, append cooldown to left text
                 lColor = E.db.SpellBinder.TTAbilityCDColor
@@ -160,12 +159,19 @@ function SB:SB_OnTooltipSetUnit(t)
                 leftText = leftText .. " (" .. cd .. "s)"
             end
 
+            -- TODO: Handle Costs other than mana
             -- Get spell costs
             local costs = GetSpellPowerCost(v.ability)
-
             local rightText
-            if costs[1] and costs[1].cost then
-                local costString = string.format("%5s Mana", tostring(costs[1].cost))
+            if costs[1] then
+                local cost = costs[1].cost
+                if cost <= 0 then
+                    cost = (UnitPower("player") * (costs[1].costPercent / 100))
+                    cost = cost - (cost % 1)
+                    cost = "~" .. tostring(cost)
+                end
+
+                local costString = string.format("%5s Mana", tostring(cost))
                 rightText = "-" .. costString
             end
 
