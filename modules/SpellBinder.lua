@@ -142,14 +142,14 @@ function SB:SB_OnTooltipSetUnit(t)
         if button then
             -- Get spell cooldown info
             local start, duration, _, _ = GetSpellCooldown(v.ability)
-            local lColor = {0.2, 0.2, 0.2}
-            local rColor = {0.5, 0.2, 0.8}
+            local lColor = E.db.SpellBinder.TTAbilityColor
+            local rColor = E.db.SpellBinder.TTCostColor
 
             local leftText = ButtonMap[button]..": "..v.ability
             -- TODO: Handle Costs other than mana
             if start > 0 and duration > 0 then
                 -- Spell is on cooldown, append cooldown to left text
-                lColor[1] = 0.8
+                lColor = E.db.SpellBinder.TTAbilityCDColor
                 local cd = start + duration - GetTime()
                 if (cd > 5) then
                     cd = cd - (cd % 1) -- bad rounding.  Don't care
@@ -158,8 +158,6 @@ function SB:SB_OnTooltipSetUnit(t)
                 end
 
                 leftText = leftText .. " (" .. cd .. "s)"
-            else
-                lColor[2] = 0.8
             end
 
             -- Get spell costs
@@ -178,7 +176,6 @@ function SB:SB_OnTooltipSetUnit(t)
             ttLines[button].lcolor = lColor;
             ttLines[button].righttext = rightText or "";
             ttLines[button].rcolor = rColor;
-            --GameTooltip:AddDoubleLine(leftText, rightText, color[1], color[2], color[3], 0.5,0.2,0.8)
         end
     end
 
@@ -187,7 +184,7 @@ function SB:SB_OnTooltipSetUnit(t)
             if i == v then
                 local lc = j.lcolor
                 local rc = j.rcolor
-                GameTooltip:AddDoubleLine(j.lefttext, j.righttext, lc[1], lc[2], lc[3], rc[1], rc[2], rc[3])
+                GameTooltip:AddDoubleLine(j.lefttext, j.righttext, lc.r, lc.g, lc.b, rc.r, rc.g, rc.b)
                 do break end
             end
         end

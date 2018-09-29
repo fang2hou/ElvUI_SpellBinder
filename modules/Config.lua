@@ -16,11 +16,26 @@ P["SpellBinder"] = {
 	["SpellBinderEnabled"] = true,
     ["ModifyTooltips"] = true,
     ["ActiveBindings"] = {},
-    ["ActiveSpecBindings"] = {}
+    ["ActiveSpecBindings"] = {},
+    ["TTAbilityColor"] = {
+        ["r"] = 0.2,
+        ["g"] = 0.8,
+        ["b"] = 0.2
+    },
+    ["TTAbilityCDColor"] = {
+        ["r"] = 0.8,
+        ["g"] = 0.2,
+        ["b"] = 0.2
+    },
+    ["TTCostColor"] = {
+        ["r"] = 0.5,
+        ["g"] = 0.2,
+        ["b"] = 0.8
+    },
 }
 
 V["SpellBinder"] = {
-    ["ActiveBindingsArgs"] = {}
+    ["ActiveBindingsArgs"] = {},
 }
 
 local SelectedHealAbility = ""
@@ -230,6 +245,11 @@ function C:InsertOptions()
 				name = L["General Options"],
 				disabled = function() return not E:GetModule("SpellBinder"); end,
 				args = {
+                    generalSeperator = {
+                        order = 0,
+                        type = "header",
+                        name = "General"
+                    },
                     enable = {
                         order = 1,
                         type = "toggle",
@@ -264,6 +284,97 @@ function C:InsertOptions()
                         desc = "Insert binding information into Unit tooltips",
                         get = function(info) return E.db.SpellBinder.ModifyTooltips end,
                         set = function(info, value) E.db.SpellBinder.ModifyTooltips = value end,
+                    },
+                    spacer1 = {
+                        order = 3,
+                        type = "description",
+                        name = ""
+                    },
+                    seperator = {
+                        order = 4,
+                        type = "header",
+                        name = "Colors"
+                    },
+                    abilityColor = {
+                        order = 5,
+                        type = "color",
+                        name = L["Ability Color"],
+                        desc = "Change the color of your abilities in the tooltip",
+                        hasAlpha = false,
+                        get = function()
+                            local colorTable = E.db.SpellBinder.TTAbilityColor
+                            return colorTable.r, colorTable.g, colorTable.b, false
+                        end,
+                        set = function(_, r, g, b, _)
+                            local colorTable = E.db.SpellBinder.TTAbilityColor
+                            colorTable.r = r
+                            colorTable.g = g
+                            colorTable.b = b
+                        end
+                    },
+                    abilityCDColor = {
+                        order = 6,
+                        type = "color",
+                        name = L["Ability Cooldown Color"],
+                        desc = "Change the color of your abilities in the tooltip when they're on cooldown",
+                        hasAlpha = false,
+                        get = function()
+                            local colorTable = E.db.SpellBinder.TTAbilityCDColor
+                            return colorTable.r, colorTable.g, colorTable.b, false
+                        end,
+                        set = function(_, r, g, b, _)
+                            local colorTable = E.db.SpellBinder.TTAbilityCDColor
+                            colorTable.r = r
+                            colorTable.g = g
+                            colorTable.b = b
+                        end
+                    },
+                    costColor = {
+                        order = 7,
+                        type = "color",
+                        name = L["Ability Cost Color"],
+                        desc = "Change the color of your ability's resource in the tooltip",
+                        hasAlpha = false,
+                        get = function()
+                            local colorTable = E.db.SpellBinder.TTCostColor
+                            return colorTable.r, colorTable.g, colorTable.b, false
+                        end,
+                        set = function(_, r, g, b, _)
+                            local colorTable = E.db.SpellBinder.TTCostColor
+                            colorTable.r = r
+                            colorTable.g = g
+                            colorTable.b = b
+                        end
+                    },
+                    spacer2 = {
+                        order = 8,
+                        type = "description",
+                        name = ""
+                    },
+                    resetColors = {
+                        order = 9,
+                        type = "execute",
+                        name = L["Reset Colors"],
+                        buttonElvUI = true,
+                        func = function()
+                            local c = E.db.SpellBinder.TTAbilityColor
+                            c.r = 0.2
+                            c.g = 0.8
+                            c.b = 0.2
+
+                            c = E.db.SpellBinder.TTAbilityCDColor
+                            c.r = 0.8
+                            c.g = 0.2
+                            c.b = 0.2
+
+                            c = E.db.SpellBinder.TTCostColor
+                            c.r = 0.5
+                            c.g = 0.2
+                            c.b = 0.8
+
+                            ACR:NotifyChange("ElvUI")
+                        end,
+                        disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
 				},
 			},
