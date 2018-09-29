@@ -55,6 +55,7 @@ addon.OtherSpells = {
         ["BLESSING_OF_SACRIFICE"] = "Blessing of Sacrifice",
         ["CLEANSE"] = "Cleanse",
         ["DIVINE_PROTECTION"] = "Divine Protection",
+        ["ARDENT_DEFENDER"] = "Ardent Defender",
         ["DIVINE_SHIELD"] = "Divine Shield",
         ["REDEMPTION"] = "Redemption"
     },

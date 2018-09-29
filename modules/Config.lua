@@ -245,7 +245,7 @@ function C:InsertOptions()
 				name = L["General Options"],
 				disabled = function() return not E:GetModule("SpellBinder"); end,
 				args = {
-                    generalSeperator = {
+                    generalHeader = {
                         order = 0,
                         type = "header",
                         name = "General"
@@ -290,7 +290,7 @@ function C:InsertOptions()
                         type = "description",
                         name = ""
                     },
-                    seperator = {
+                    colorHeader = {
                         order = 4,
                         type = "header",
                         name = "Colors"
@@ -351,8 +351,13 @@ function C:InsertOptions()
                         type = "description",
                         name = ""
                     },
-                    resetColors = {
+                    spacer3 = {
                         order = 9,
+                        type = "description",
+                        name = ""
+                    },
+                    resetColors = {
+                        order = 10,
                         type = "execute",
                         name = L["Reset Colors"],
                         buttonElvUI = true,
