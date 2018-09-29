@@ -76,6 +76,7 @@ addon.OtherSpells = {
         ["GUARDIAN_SPIRIT"] = "Guardian Spirit",
         ["SYMBOL_OF_HOPE"] = "Symbol of Hope",
         ["RAPTURE"] = "Rapture",
+        ["LEVITATE"] = "Levitate",
     },
     ["SHAMAN"] = {
         ["ANCESTRAL_SPIRIT"] = "Ancestral Spirit",

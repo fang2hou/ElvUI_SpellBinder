@@ -71,6 +71,8 @@ local ButtonToSpellAttribute = {
     ["type15"] = "spell15",
 }
 
+local ButtonOrder = { "LeftButton", "MiddleButton", "RightButton", "Button4", "Button5" }
+
 function SB:ShouldPutSpellInTooltip(spell, btext)
     local alt = IsAltKeyDown()
     local shift = IsShiftKeyDown()
@@ -132,19 +134,22 @@ function SB:SB_OnTooltipSetUnit(t)
     local hoverFrame = GetMouseFocus()
     if not addon:TableContains(TooltipFrames, hoverFrame) then return end
 
+    local ttLines = {}
+
     --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
     for _, v in pairs(addon.ActiveBindingsTable) do
         local button = SB:ShouldPutSpellInTooltip(v.ability, v.binding)
         if button then
             -- Get spell cooldown info
             local start, duration, _, _ = GetSpellCooldown(v.ability)
-            local color = {0.2, 0.2, 0.2}
+            local lColor = {0.2, 0.2, 0.2}
+            local rColor = {0.5, 0.2, 0.8}
 
             local leftText = ButtonMap[button]..": "..v.ability
             -- TODO: Handle Costs other than mana
             if start > 0 and duration > 0 then
                 -- Spell is on cooldown, append cooldown to left text
-                color[1] = 0.8
+                lColor[1] = 0.8
                 local cd = start + duration - GetTime()
                 if (cd > 5) then
                     cd = cd - (cd % 1) -- bad rounding.  Don't care
@@ -154,7 +159,7 @@ function SB:SB_OnTooltipSetUnit(t)
 
                 leftText = leftText .. " (" .. cd .. "s)"
             else
-                color[2] = 0.8
+                lColor[2] = 0.8
             end
 
             -- Get spell costs
@@ -167,7 +172,24 @@ function SB:SB_OnTooltipSetUnit(t)
             end
 
             leftText = string.format("%-20s", leftText)
-            GameTooltip:AddDoubleLine(leftText, rightText, color[1], color[2], color[3], 0.5,0.2,0.8)
+
+            ttLines[button] = {}
+            ttLines[button].lefttext = leftText or "";
+            ttLines[button].lcolor = lColor;
+            ttLines[button].righttext = rightText or "";
+            ttLines[button].rcolor = rColor;
+            --GameTooltip:AddDoubleLine(leftText, rightText, color[1], color[2], color[3], 0.5,0.2,0.8)
+        end
+    end
+
+    for _, v in ipairs(ButtonOrder) do
+        for i, j in pairs(ttLines) do
+            if i == v then
+                local lc = j.lcolor
+                local rc = j.rcolor
+                GameTooltip:AddDoubleLine(j.lefttext, j.righttext, lc[1], lc[2], lc[3], rc[1], rc[2], rc[3])
+                do break end
+            end
         end
     end
 end
