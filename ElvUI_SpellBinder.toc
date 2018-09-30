@@ -9,8 +9,8 @@
 
 Libraries\Load_Libraries.xml
 locales\load_locales.xml
-modules\BlizzardFrames.lua
 modules\Utilities.lua
 modules\ExtraTables.lua
+modules\BlizzardFrames.lua
 modules\Config.lua
 modules\SpellBinder.lua

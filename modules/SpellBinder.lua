@@ -213,7 +213,7 @@ function SB:UpdateRegisteredClicks(button)
         button:EnableMouseWheel(true)
     end
 
-    for button in pairs(hcframes) do
+    for button in pairs(HCFrames) do
         button:RegisterForClicks(direction)
         button:EnableMouseWheel(true)
     end
@@ -285,6 +285,7 @@ end
 
 function SB:RegisterFrame(button)
     CCFrames[button] = true
+    HCFrames[button] = true
 
     SB:UpdateRegisteredClicks(button)
 
@@ -303,6 +304,7 @@ function SB:UnregisterFrame(button)
     GroupHeader:Execute(GroupHeader:GetAttribute("remove_clicks"), button)
 
     CCFrames[button] = nil
+    HCFrames[button] = nil
 end
 
 function addon:EnableClicks()
@@ -389,9 +391,9 @@ function SB:UpdateTooltip(_, key)
     end
 end
 
-
 function SB:Initialize()
     C:InsertOptions()
+    --while not IsAddOnLoaded("SpellBinder_Config") do end
 
     if addon.ActiveBindingsTable == nil then
         addon.ActiveBindingsTable = E.db.SpellBinder.ActiveBindings
