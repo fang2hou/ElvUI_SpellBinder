@@ -54,7 +54,7 @@ local UsableCommands = {
 
 addon.PlayerClass = ""
 addon.PlayerSpec = ""
-addon.ActiveBindingsTable = E.db.SpellBinder.ActiveBindings
+addon.ActiveBindingsTable = {}
 
 E.PopupDialogs["RESET_SB_DATA"] = {
     text = L["Accepting this will reset all of your SpellBinder data. Are you sure?"],
@@ -502,6 +502,7 @@ end
 function C:Initialize()
 	EP:RegisterPlugin(addonName, C.InsertOptions)
     C:PurgeTables()
+    addon.ActiveBindingsTable = E.db.SpellBinder.ActiveBindings
 end
 
 E:RegisterModule(C:GetName())

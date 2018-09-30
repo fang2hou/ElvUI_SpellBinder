@@ -393,7 +393,6 @@ end
 
 function SB:Initialize()
     C:InsertOptions()
-    --while not IsAddOnLoaded("SpellBinder_Config") do end
 
     if addon.ActiveBindingsTable == nil then
         addon.ActiveBindingsTable = E.db.SpellBinder.ActiveBindings
