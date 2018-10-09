@@ -348,7 +348,6 @@ function SB:OnPlayerEnterWorld()
         addon.ActiveBindingsTable = E.db.SpellBinder.ActiveSpecBindings[playerSpec]
     end
 
-    --C_Timer.After(10, function() SB:UpdateBindingTables() end)
     SB:UpdateBindingTables()
     addon:DisableClicks()
     local setup, remove = SB:GetClickAttributes()
