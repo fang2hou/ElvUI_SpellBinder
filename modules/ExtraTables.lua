@@ -204,5 +204,3 @@ addon.OtherSpells = {
         ["FORGE_OF_LIGHT"] = L["Forge of Light"],
     },
 }
-
-addon.Items = { }

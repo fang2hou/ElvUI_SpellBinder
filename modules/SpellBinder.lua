@@ -53,27 +53,27 @@ local ButtonToButtonAttribute = {
     ["Button15"] = "type15",
 }
 
-local ButtonToSpellAttribute = {
-    ["type1"] = "spell1",
-    ["type2"] = "spell2",
-    ["type3"] = "spell3",
-    ["type4"] = "spell4",
-    ["type5"] = "spell5",
-    ["type6"] = "spell6",
-    ["type7"] = "spell7",
-    ["type8"] = "spell8",
-    ["typ9"] = "spell9",
-    ["type10"] = "spell10",
-    ["type11"] = "spell11",
-    ["type12"] = "spell12",
-    ["type13"] = "spell13",
-    ["type14"] = "spell14",
-    ["type15"] = "spell15",
+local ButtonToAttribute = {
+    ["type1"] = "1",
+    ["type2"] = "2",
+    ["type3"] = "3",
+    ["type4"] = "4",
+    ["type5"] = "5",
+    ["type6"] = "6",
+    ["type7"] = "7",
+    ["type8"] = "8",
+    ["type9"] = "9",
+    ["type10"] = "10",
+    ["type11"] = "11",
+    ["type12"] = "12",
+    ["type13"] = "13",
+    ["type14"] = "14",
+    ["type15"] = "15",
 }
 
 local ButtonOrder = { "LeftButton", "MiddleButton", "RightButton", "Button4", "Button5" }
 
-function SB:ShouldPutSpellInTooltip(spell, btext)
+function SB:ShouldPutSpellInTooltip(spell, btext, type)
     local alt = IsAltKeyDown()
     local shift = IsShiftKeyDown()
     local ctrl = IsControlKeyDown()
@@ -94,7 +94,7 @@ function SB:ShouldPutSpellInTooltip(spell, btext)
 
     local usable, nomana = IsUsableSpell(spell)
     -- Forbearance causes a false / false return for Lay on Hands.  It really shouldn't...
-    if (usable == false) and (nomana == false) then return nil end
+    if (type == "spell") and (usable == false) and (nomana == false) then return nil end
 
     return bButton
 end
@@ -138,10 +138,16 @@ function SB:SB_OnTooltipSetUnit(t)
 
     --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
     for _, v in pairs(addon.ActiveBindingsTable) do
-        local button = SB:ShouldPutSpellInTooltip(v.ability, v.binding)
+        local button = SB:ShouldPutSpellInTooltip(v.ability, v.binding, v.type)
         if button then
-            -- Get spell cooldown info
-            local start, duration, _, _ = GetSpellCooldown(v.ability)
+            -- Get cooldown info
+            local start, duration = 0, 0
+            if v.type == "spell" then
+                start, duration, _, _ = GetSpellCooldown(v.ability)
+            elseif v.type == "item" then
+                start, duration, _, _ = GetItemCooldown(addon.UsableItemMap[v.ability].id)
+            end
+
             local lColor = E.db.SpellBinder.TTAbilityColor
             local rColor = E.db.SpellBinder.TTCostColor
 
@@ -163,7 +169,7 @@ function SB:SB_OnTooltipSetUnit(t)
             -- Get spell costs
             local costs = GetSpellPowerCost(v.ability)
             local rightText
-            if costs[1] then
+            if v.type == "spell" and costs[1] then
                 local cost = costs[1].cost
                 if cost <= 0 then
                     cost = (UnitPower("player") * (costs[1].costPercent / 100))
@@ -233,9 +239,9 @@ function SB:GetClickAttributes()
     --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
     for k, v in pairs(addon.ActiveBindingsTable) do
         local prefix, button = SB:GetAttributeString(v.binding)
-        local spellAttr = ButtonToSpellAttribute[button]
+        local attr = ButtonToAttribute[button]
 
-        if v.type == "spell" then
+        if v.type == "spell" or v.type == "item" then
             if prefix == "" and button == "type1" then
                 rem[#rem + 1] = "button:SetAttribute('type1', 'target')"
                 rem[#rem + 1] = "button:SetAttribute('spell1', 'nil')"
@@ -244,11 +250,13 @@ function SB:GetClickAttributes()
                 rem[#rem + 1] = "button:SetAttribute('spell2', 'nil')"
             else
                 rem[#rem + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'nil')"
-                rem[#rem + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', 'nil')"
+                rem[#rem + 1] = "button:SetAttribute('" .. prefix .. v.type .. attr .. "', 'nil')"
             end
 
-            add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'spell')"
-            add[#add + 1] = "button:SetAttribute('" .. prefix .. spellAttr .. "', '" .. v.ability .. "')"
+            rem[#rem + 1] = "button:SetAttribute('item', 'nil')"
+
+            add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', '" .. v.type .. "')"
+            add[#add + 1] = "button:SetAttribute('" .. prefix .. v.type .. attr .. "', \"" .. v.ability .. "\")"
         elseif v.type == "command" then
             if k == "ASSIST" then
                 add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'assist')"
@@ -331,7 +339,11 @@ function SB:UpdateBindingTables()
     C:UpdateActiveBindings()
     C:UpdateHealingSpellSelect()
     C:UpdateOtherSpellSelect()
-    C:UpdateItemTable()
+    C:UpdateItemSelect()
+end
+
+function SB:OnBagUpdate()
+    C:UpdateItemSelect()
 end
 
 function SB:OnPlayerEnterWorld()
@@ -423,6 +435,7 @@ function SB:Initialize()
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnterWorld");
     self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", "OnPlayerSpecializationChanged");
     self:RegisterEvent("UNIT_INVENTORY_CHANGED", "OnPlayerInventoryChanged");
+    self:RegisterEvent("BAG_UPDATE", "OnBagUpdate");
 
     self:SecureHookScript(GameTooltip, 'OnTooltipSetUnit', 'SB_OnTooltipSetUnit')
     self:SecureHookScript(GameTooltip, 'OnHide', function()

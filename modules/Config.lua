@@ -44,6 +44,7 @@ local SelectedCommand = "ASSIST"
 local SelectedItem = ""
 local UsableHealingSpells = {}
 local UsableOtherSpells = {}
+local UsableItems = {}
 
 local UsableCommands = {
     ["ASSIST"] = "Assist",
@@ -52,9 +53,17 @@ local UsableCommands = {
     ["TARGET"] = "Target"
 }
 
+local EquipmentSlots = {
+    "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot",
+    "ShirtSlot", "TabardSlot", "WristSlot", "HandsSlot", "WaistSlot",
+    "LegsSlot", "FeetSlot", "Finger0Slot", "Finger1Slot",
+    "Trinket0Slot", "Trinket1Slot", "MainHandSlot", "SecondaryHandSlot",
+}
+
 addon.PlayerClass = ""
 addon.PlayerSpec = ""
 addon.ActiveBindingsTable = {}
+addon.UsableItemMap = {}
 
 E.PopupDialogs["RESET_SB_DATA"] = {
     text = L["Accepting this will reset all of your SpellBinder data. Are you sure?"],
@@ -113,9 +122,7 @@ function C:UpdateOtherSpellSelect()
     -- Clear all target table data
     UsableOtherSpells = table.wipe(UsableOtherSpells)
 
-    print("Checking OtherSpells for: ", addon.PlayerClass)
     if addon.OtherSpells[addon.PlayerClass] then
-        print(addon.PlayerClass, " exists")
         -- Add spells to the target table if they're usable
         table.foreach(addon.OtherSpells[addon.PlayerClass],
             function(k, v) C:SetIfUsable(UsableOtherSpells, k, v) end)
@@ -132,8 +139,50 @@ function C:UpdateOtherSpellSelect()
     ACR:NotifyChange("ElvUI")
 end
 
-function C:UpdateCommandTable() end
-function C:UpdateItemTable() end
+function C:ProcessItem(bag, slot, itemID)
+    if not itemID then return end
+
+    local itemName = GetItemInfo(itemID)
+    local sName, sID, sRank = GetItemSpell(itemID)
+    if sName ~= nil then
+        local iNameKey = itemName:gsub("%s+", "_")
+        iNameKey = strupper(iNameKey)
+        UsableItems[iNameKey] = itemName
+        addon.UsableItemMap[itemName] = {}
+        addon.UsableItemMap[itemName].key = iNameKey
+        addon.UsableItemMap[itemName].bag = bag
+        addon.UsableItemMap[itemName].slot = slot
+        addon.UsableItemMap[itemName].id = itemID
+    end
+end
+
+function C:ProcessBag(bag)
+    for slot=1, GetContainerNumSlots(bag) do
+        local itemID = GetContainerItemID(bag, slot)
+        C:ProcessItem(bag, slot, itemID)
+    end
+end
+
+function C:UpdateItemSelect()
+    UsableItems = table.wipe(UsableItems)
+    addon.UsableItemMap = table.wipe(addon.UsableItemMap)
+
+    -- Find all the usable items in the player's bags
+    for bag=0, NUM_BAG_SLOTS do C:ProcessBag(bag) end
+
+    -- Find all the usable items in the player's gear
+    for _, v in pairs(EquipmentSlots) do
+        local slotID = GetInventorySlotInfo(v)
+        local itemID = GetInventoryItemID("player", slotID)
+        C:ProcessItem(nil, slotID, itemID)
+    end
+
+    E.Options.args.SpellBinder.args.bindingsGroup.args.items.values = UsableItems
+    local a = addon:TableKeysToSortedArray(UsableItems)
+
+    SelectedItem = a[1]
+    ACR:NotifyChange("ElvUI")
+end
 
 function C:UpdateActiveBindingsGroup(key, binding)
     local i = 1
@@ -212,7 +261,6 @@ function C:BindAbility(table, selected, type)
     end
 
     local text = addon:GetBinding()
-    -- TODO: Support items and commands
 
     for _, v in pairs(addon.ActiveBindingsTable) do
          if v.binding == text then
@@ -456,7 +504,7 @@ function C:InsertOptions()
                         desc = L["List of available items"],
                         get = function(info) return SelectedItem end,
                         set = function(info, value) SelectedItem = value end,
-                        values = addon.Items
+                        values = UsableItems
                     },
                     itemsBind = {
                         order = 7,
@@ -465,8 +513,8 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            --C:BindAbility(UsableItems, SelectedItem, "item")
-                            --addon:UpdateAllAttributes()
+                            C:BindAbility(UsableItems, SelectedItem, "item")
+                            addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
