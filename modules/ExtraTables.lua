@@ -173,7 +173,6 @@ addon.OtherSpells = {
         ["INTERVENE"] = L["Intervene"],
     },
     ["MAGE"] = {
-        ["INTERVENE"] = L["Intervene"],
         ["REMOVE_CURSE"] = L["Remove Curse"],
     },
     ["HUNTER"] = {

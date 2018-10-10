@@ -92,9 +92,9 @@ function C:UpdateHealingSpellSelect()
     -- Clear all target table data
     UsableHealingSpells = table.wipe(UsableHealingSpells)
 
-    if addon.HealingSpells[E.private.SpellBinder.PlayerClass] then
+    if addon.HealingSpells[addon.PlayerClass] then
         -- Add spells to the target table if they're usable
-        table.foreach(addon.HealingSpells[E.private.SpellBinder.PlayerClass],
+        table.foreach(addon.HealingSpells[addon.PlayerClass],
             function(k, v) C:SetIfUsable(UsableHealingSpells, k, v) end)
     end
 
@@ -113,9 +113,11 @@ function C:UpdateOtherSpellSelect()
     -- Clear all target table data
     UsableOtherSpells = table.wipe(UsableOtherSpells)
 
-    if addon.OtherSpells[E.private.SpellBinder.PlayerClass] then
+    print("Checking OtherSpells for: ", addon.PlayerClass)
+    if addon.OtherSpells[addon.PlayerClass] then
+        print(addon.PlayerClass, " exists")
         -- Add spells to the target table if they're usable
-        table.foreach(addon.OtherSpells[E.private.SpellBinder.PlayerClass],
+        table.foreach(addon.OtherSpells[addon.PlayerClass],
             function(k, v) C:SetIfUsable(UsableOtherSpells, k, v) end)
     end
 
