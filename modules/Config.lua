@@ -34,10 +34,9 @@ P["SpellBinder"] = {
     },
 }
 
-V["SpellBinder"] = {
-    ["ActiveBindingsArgs"] = {},
-}
+V["SpellBinder"] = { }
 
+local ActiveBindingsArgs = {}
 local SelectedHealAbility = ""
 local SelectedOtherAbility = ""
 local SelectedCommand = "ASSIST"
@@ -90,7 +89,7 @@ function C:PurgeTables(purgeAll)
     -- These tables should always start empty
     UsableHealingSpells = table.wipe(UsableHealingSpells)
     UsableOtherSpells = table.wipe(UsableOtherSpells)
-    E.private.SpellBinder.ActiveBindingsArgs = table.wipe(E.private.SpellBinder.ActiveBindingsArgs)
+    ActiveBindingsArgs = table.wipe(ActiveBindingsArgs)
     if (purgeAll) then
         E.db.SpellBinder.ActiveBindings = table.wipe(E.db.SpellBinder.ActiveBindings)
         E.db.SpellBinder.ActiveSpecBindings = table.wipe(E.db.SpellBinder.ActiveSpecBindings)
@@ -206,7 +205,7 @@ function C:UpdateActiveBindingsGroup(key, binding)
     end
 
     local abilityIDString = binding.ability:gsub("%s+", "")
-    E.private.SpellBinder.ActiveBindingsArgs[abilityIDString] = {
+    ActiveBindingsArgs[abilityIDString] = {
         order = 0,
         type = "group",
         name = binding.ability .. " (" .. binding.binding .. ")",
@@ -235,7 +234,7 @@ function C:UpdateActiveBindingsGroup(key, binding)
                 buttonElvUI = true,
                 func = function()
                     addon.ActiveBindingsTable[key] = nil
-                    E.private.SpellBinder.ActiveBindingsArgs[abilityIDString] = nil
+                    ActiveBindingsArgs[abilityIDString] = nil
                     ACR:NotifyChange("ElvUI")
                     addon:UpdateAllAttributes()
                 end,
@@ -243,14 +242,13 @@ function C:UpdateActiveBindingsGroup(key, binding)
             },
         },
     }
-    E.Options.args.SpellBinder.args.bindingsGroup.args.activeBindings.args = E.private.SpellBinder.ActiveBindingsArgs
+    E.Options.args.SpellBinder.args.bindingsGroup.args.activeBindings.args = ActiveBindingsArgs
     ACR:NotifyChange("ElvUI")
 end
 
 function C:UpdateActiveBindings()
-    E.private.SpellBinder.ActiveBindingsArgs = table.wipe(E.private.SpellBinder.ActiveBindingsArgs)
+    E.private.SpellBinder.ActiveBindingsArgs = table.wipe(ActiveBindingsArgs)
 
-    --for key, value in pairs(E.db.SpellBinder.ActiveBindings) do
     for key, value in pairs(addon.ActiveBindingsTable) do
         C:UpdateActiveBindingsGroup(key, value)
     end
@@ -478,7 +476,7 @@ function C:InsertOptions()
                         name = L["Active Bindings"],
                         customWidth = 500,
                         childGroups = "tree",
-                        args = E.private.SpellBinder.ActiveBindingsArgs,
+                        args = ActiveBindingsArgs,
                     },
                     otherSpells = {
                         order = 4,
