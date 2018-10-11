@@ -73,7 +73,7 @@ E.PopupDialogs["RESET_SB_DATA"] = {
         C:PurgeTables(true)
         C:UpdateHealingSpellSelect()
         C:UpdateOtherSpellSelect()
-        C:UpdateItemTable()
+        C:UpdateItemSelect()
         ACR:NotifyChange("ElvUI")
     end,
     timeout = 0,
@@ -196,9 +196,13 @@ function C:UpdateActiveBindingsGroup(key, binding)
             local spellName = GetSpellBookItemName(i, BOOKTYPE_SPELL)
             if not spellName then do break end end
 
-            if spellName == binding.ability then spellText = addon:GetSpellText(i, BOOKTYPE_SPELL); end
+            if spellName == binding.ability then spellText = addon:GetSpellText(i, BOOKTYPE_SPELL, binding.type) end
             i = i + 1
         end
+    elseif binding.type == "item" then
+        local bag = addon.UsableItemMap[binding.ability].bag
+        local slot = addon.UsableItemMap[binding.ability].slot
+        spellText = addon:GetSpellText(bag, slot, binding.type)
     end
 
     local abilityIDString = binding.ability:gsub("%s+", "")

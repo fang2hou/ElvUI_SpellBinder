@@ -336,10 +336,10 @@ end
 --------- MAIN ----------
 
 function SB:UpdateBindingTables()
-    C:UpdateActiveBindings()
     C:UpdateHealingSpellSelect()
     C:UpdateOtherSpellSelect()
     C:UpdateItemSelect()
+    C:UpdateActiveBindings()
 end
 
 function SB:OnBagUpdate()
@@ -354,10 +354,13 @@ function SB:OnPlayerEnterWorld()
         local currentSpec = GetSpecialization()
         local _, playerSpec = GetSpecializationInfo(currentSpec)
         addon.PlayerSpec = playerSpec or "None"
-        if E.db.SpellBinder.ActiveSpecBindings[playerSpec] == nil then
-            E.db.SpellBinder.ActiveSpecBindings[playerSpec] = {}
+        if E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass] == nil then
+            E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass] = {}
         end
-        addon.ActiveBindingsTable = E.db.SpellBinder.ActiveSpecBindings[playerSpec]
+        if E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass][playerSpec] == nil then
+            E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass][playerSpec] = {}
+        end
+        addon.ActiveBindingsTable = E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass][playerSpec]
     end
 
     SB:UpdateBindingTables()
@@ -378,10 +381,13 @@ function SB:OnPlayerSpecializationChanged()
         local currentSpec = GetSpecialization()
         local _, playerSpec = GetSpecializationInfo(currentSpec)
         addon.PlayerSpec = playerSpec or "None"
-        if E.db.SpellBinder.ActiveSpecBindings[playerSpec] == nil then
-            E.db.SpellBinder.ActiveSpecBindings[playerSpec] = {}
+        if E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass] == nil then
+            E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass] = {}
         end
-        addon.ActiveBindingsTable = E.db.SpellBinder.ActiveSpecBindings[playerSpec]
+        if E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass][playerSpec] == nil then
+            E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass][playerSpec] = {}
+        end
+        addon.ActiveBindingsTable = E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass][playerSpec]
     end
 
     SB:UpdateBindingTables()

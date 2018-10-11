@@ -19,10 +19,17 @@ function addon:TableLength(t)
 end
 
 local tooltip = CreateFrame("GameTooltip", "SpellScanTooltip", UIParent, "GameTooltipTemplate")
-function addon:GetSpellText(spellNum, bookType)
+function addon:GetSpellText(target, slot, type)
     tooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
     tooltip:ClearLines()
-    tooltip:SetSpellBookItem(spellNum, bookType)
+    if type == "spell" then
+        tooltip:SetSpellBookItem(target, slot)
+    elseif type == "item" and target ~= nil then
+        tooltip:SetBagItem(target, slot)
+    else
+        tooltip:SetInventoryItem("player", slot)
+    end
+
     local n = ""
     for i = 1, tooltip:NumLines() do
         local lName = "SpellScanTooltipTextLeft" .. tostring(i)
