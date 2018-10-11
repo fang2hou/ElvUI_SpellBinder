@@ -31,4 +31,4 @@ cache:
 
 branches:
   only:
-  - /^r\d+(-(alpha|beta))?(-\d+)?$/
+  - /^\d+\.\d+(\.\d+)?(-\S*)?$/
