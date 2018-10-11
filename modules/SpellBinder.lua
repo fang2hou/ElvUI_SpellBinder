@@ -342,11 +342,7 @@ function SB:UpdateBindingTables()
     C:UpdateActiveBindings()
 end
 
-function SB:OnBagUpdate()
-    C:UpdateItemSelect()
-end
-
-function SB:OnPlayerEnterWorld()
+function SB:OnInspectReady()
     local _, englishClass, _ = UnitClass("player")
     addon.PlayerClass = englishClass or "None"
 
@@ -369,6 +365,13 @@ function SB:OnPlayerEnterWorld()
     GroupHeader:SetAttribute("setup_clicks", setup)
     GroupHeader:SetAttribute("remove_clicks", remove)
     addon:EnableClicks()
+
+    self:UnregisterEvent("INSPECT_READY");
+end
+
+function SB:OnPlayerEnterWorld()
+    self:RegisterEvent("INSPECT_READY", "OnInspectReady");
+    NotifyInspect("player")
 end
 
 function SB:OnPlayerLevelUp()
@@ -398,8 +401,12 @@ function SB:OnPlayerSpecializationChanged()
     addon:EnableClicks()
 end
 
+function SB:OnBagUpdate()
+    SB:UpdateBindingTables()
+end
+
 function SB:OnPlayerInventoryChanged()
-    -- TODO: Update items available for binding
+    SB:UpdateBindingTables()
 end
 
 function SB:UpdateTooltip(_, key)
