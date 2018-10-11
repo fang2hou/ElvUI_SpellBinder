@@ -145,6 +145,7 @@ function C:ProcessItem(bag, slot, itemID)
     local sName, sID, sRank = GetItemSpell(itemID)
     if sName ~= nil then
         local iNameKey = itemName:gsub("%s+", "_")
+        local iNameKey = itemName:gsub("'", "")
         iNameKey = strupper(iNameKey)
         UsableItems[iNameKey] = itemName
         addon.UsableItemMap[itemName] = {}
@@ -205,6 +206,7 @@ function C:UpdateActiveBindingsGroup(key, binding)
     end
 
     local abilityIDString = binding.ability:gsub("%s+", "")
+    local abilityIDString = binding.ability:gsub("'", "")
     ActiveBindingsArgs[abilityIDString] = {
         order = 0,
         type = "group",
