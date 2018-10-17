@@ -285,13 +285,15 @@ function addon:UpdateAllAttributes()
 
     -- Set up new clicks
     local setup, remove = SB:GetClickAttributes()
-    GroupHeader:SetAttribute("setup_clicks", setup)
-    GroupHeader:SetAttribute("remove_clicks", remove)
+    addon:SetHeaderAttribute("setup_clicks", setup)
+    addon:SetHeaderAttribute("remove_clicks", remove)
 
     addon:EnableClicks()
 end
 
 function SB:RegisterFrame(button)
+    if InCombatLockdown() then return end
+
     CCFrames[button] = true
     HCFrames[button] = true
 
@@ -308,6 +310,8 @@ function SB:RegisterFrame(button)
 end
 
 function SB:UnregisterFrame(button)
+    if InCombatLockdown() then return end
+
     GroupHeader:SetFrameRef("sbsetup_button", button)
     GroupHeader:Execute(GroupHeader:GetAttribute("remove_clicks"), button)
 
@@ -315,7 +319,15 @@ function SB:UnregisterFrame(button)
     HCFrames[button] = nil
 end
 
+function addon:SetHeaderAttribute(key, val)
+    if InCombatLockdown() then return end
+
+    GroupHeader:SetAttribute(key, val);
+end
+
 function addon:EnableClicks()
+    if InCombatLockdown() then return end
+
     for k, v in pairs(CCFrames) do
         if v ~= nil and v ~= false then
             GroupHeader:SetFrameRef("sbsetup_button", k)
@@ -325,6 +337,8 @@ function addon:EnableClicks()
 end
 
 function addon:DisableClicks()
+    if InCombatLockdown() then return end
+
     for k, v in pairs(CCFrames) do
         if v ~= nil and v ~= false then
             GroupHeader:SetFrameRef("sbsetup_button", k)
@@ -362,8 +376,8 @@ function SB:OnInspectReady()
     SB:UpdateBindingTables()
     addon:DisableClicks()
     local setup, remove = SB:GetClickAttributes()
-    GroupHeader:SetAttribute("setup_clicks", setup)
-    GroupHeader:SetAttribute("remove_clicks", remove)
+    addon:SetHeaderAttribute("setup_clicks", setup);
+    addon:SetHeaderAttribute("remove_clicks", remove);
     addon:EnableClicks()
 
     self:UnregisterEvent("INSPECT_READY");
@@ -375,7 +389,8 @@ function SB:OnPlayerEnterWorld()
 end
 
 function SB:OnPlayerLevelUp()
-    SB:UpdateBindingTables()
+    C:UpdateHealingSpellSelect()
+    C:UpdateOtherSpellSelect()
 end
 
 function SB:OnPlayerSpecializationChanged()
@@ -396,17 +411,17 @@ function SB:OnPlayerSpecializationChanged()
     SB:UpdateBindingTables()
     addon:DisableClicks()
     local setup, remove = SB:GetClickAttributes()
-    GroupHeader:SetAttribute("setup_clicks", setup)
-    GroupHeader:SetAttribute("remove_clicks", remove)
+    addon:SetHeaderAttribute("setup_clicks", setup)
+    addon:SetHeaderAttribute("remove_clicks", remove)
     addon:EnableClicks()
 end
 
 function SB:OnBagUpdate()
-    SB:UpdateBindingTables()
+    C:UpdateItemSelect()
 end
 
 function SB:OnPlayerInventoryChanged()
-    SB:UpdateBindingTables()
+    C:UpdateItemSelect()
 end
 
 function SB:UpdateTooltip(_, key)
@@ -423,8 +438,8 @@ function SB:Initialize()
     end
 
     local setup, remove = SB:GetClickAttributes()
-    GroupHeader:SetAttribute("setup_clicks", setup)
-    GroupHeader:SetAttribute("remove_clicks", remove)
+    addon:SetHeaderAttribute("setup_clicks", setup)
+    addon:SetHeaderAttribute("remove_clicks", remove)
 
     local oldClickCastFrames = ClickCastFrames
     ClickCastFrames = setmetatable({}, {__newindex = function(_, k, _)
