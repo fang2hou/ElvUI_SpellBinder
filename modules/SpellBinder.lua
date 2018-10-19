@@ -292,13 +292,13 @@ function addon:UpdateAllAttributes()
 end
 
 function SB:RegisterFrame(button)
-    if InCombatLockdown() then return end
 
     CCFrames[button] = true
     HCFrames[button] = true
 
     SB:UpdateRegisteredClicks(button)
 
+    if InCombatLockdown() then return end
     -- TODO:  Figure these out
     --GroupHeader:WrapScript(button, "OnEnter", GroupHeader:GetAttribute("setup_onenter"))
     --GroupHeader:WrapScript(button, "OnLeave", GroupHeader:GetAttribute("setup_onleave"))
@@ -310,13 +310,13 @@ function SB:RegisterFrame(button)
 end
 
 function SB:UnregisterFrame(button)
+    CCFrames[button] = nil
+    HCFrames[button] = nil
+
     if InCombatLockdown() then return end
 
     GroupHeader:SetFrameRef("sbsetup_button", button)
     GroupHeader:Execute(GroupHeader:GetAttribute("remove_clicks"), button)
-
-    CCFrames[button] = nil
-    HCFrames[button] = nil
 end
 
 function addon:SetHeaderAttribute(key, val)

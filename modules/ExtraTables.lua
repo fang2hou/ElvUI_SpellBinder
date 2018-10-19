@@ -10,6 +10,7 @@ addon.HealingSpells = {
     ["PALADIN"] = {
         ["BEACON_OF_VIRTUE"] = L["Beacon of Virtue"],
         ["BEACON_OF_FAITH"] = L["Beacon of Faith"],
+        ["BEACON_OF_LIGHT"] = L["Beacon of Light"],
         ["FLASH_OF_LIGHT"] = L["Flash of Light"],
         ["HOLY_LIGHT"] = L["Holy Light"],
         ["HOLY_SHOCK"] = L["Holy Shock"],
