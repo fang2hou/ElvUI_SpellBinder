@@ -201,14 +201,14 @@ function C:UpdateActiveBindingsGroup(key, binding)
             if spellName == binding.ability then spellText = addon:GetSpellText(i, BOOKTYPE_SPELL, binding.type) end
             i = i + 1
         end
-        bindingID = "spell"..spellID
+        bindingID = "spell_"..spellID
     elseif binding.type == "item" then
         if (addon.UsableItemMap[binding.ability] ~= nil) then
             local bag = addon.UsableItemMap[binding.ability].bag
             local slot = addon.UsableItemMap[binding.ability].slot
             spellText = addon:GetSpellText(bag, slot, binding.type)
         end
-        bindingID = "item".. addon.UsableItemMap[binding.ability].id
+        bindingID = "item_".. addon.UsableItemMap[binding.ability].id
     elseif binding.type == "command" then
         bindingID = binding.ability
     end
