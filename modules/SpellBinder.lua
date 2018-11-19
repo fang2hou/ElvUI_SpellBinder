@@ -78,6 +78,8 @@ function SB:ShouldPutSpellInTooltip(spell, btext, type)
     local shift = IsShiftKeyDown()
     local ctrl = IsControlKeyDown()
 
+	if type == "item" and addon.UsableItemMap[spell] == nil then return false end
+
     -- Break up the binding string into constituants
     local bpart, binding = "", btext
     local bAlt, bCtrl, bShift, bButton = false, false, false, ""
@@ -137,7 +139,7 @@ function SB:SB_OnTooltipSetUnit(t)
     local ttLines = {}
 
     --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
-    for _, v in pairs(addon.ActiveBindingsTable) do
+    for _, v in addon:mpairs(addon.ActiveBindingsTable, ElvUI_SpellBinderGlobalDB.GlobalBindings) do
         local button = SB:ShouldPutSpellInTooltip(v.ability, v.binding, v.type)
         if button then
             -- Get cooldown info
@@ -237,7 +239,7 @@ function SB:GetClickAttributes()
 
     -- Apply all currently active bindings
     --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
-    for k, v in pairs(addon.ActiveBindingsTable) do
+    for k, v in addon:mpairs(addon.ActiveBindingsTable, ElvUI_SpellBinderGlobalDB.GlobalBindings) do
         local prefix, button = SB:GetAttributeString(v.binding)
         local attr = ButtonToAttribute[button]
 
@@ -352,6 +354,7 @@ end
 function SB:UpdateBindingTables()
     C:UpdateHealingSpellSelect()
     C:UpdateOtherSpellSelect()
+    C:UpdateRacialSelect()
     C:UpdateItemSelect()
     C:UpdateActiveBindings()
 end
@@ -391,6 +394,7 @@ end
 function SB:OnPlayerLevelUp()
     C:UpdateHealingSpellSelect()
     C:UpdateOtherSpellSelect()
+    C:UpdateRacialSelect()
 end
 
 function SB:OnPlayerSpecializationChanged()

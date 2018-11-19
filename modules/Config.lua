@@ -37,14 +37,20 @@ P["SpellBinder"] = {
 V["SpellBinder"] = { }
 
 local ActiveBindingsArgs = {}
+local GlobalActiveBindingsArgs = {}
 local SelectedHealAbility = ""
 local SelectedOtherAbility = ""
 local SelectedCommand = "ASSIST"
 local SelectedItem = ""
+local SelectedRacial = ""
 local UsableHealingSpells = {}
 local UsableOtherSpells = {}
-local UsableItems = {}
+local UsableRacials = {} 
+local UsableItems = {} 
 
+ElvUI_SpellBinderGlobalDB = { 
+	["GlobalBindings"] = {}, 
+} 
 local UsableCommands = {
     ["ASSIST"] = L["Assist"],
     ["FOCUS"] = L["Focus"],
@@ -72,6 +78,21 @@ E.PopupDialogs["RESET_SB_DATA"] = {
         C:PurgeTables(true)
         C:UpdateHealingSpellSelect()
         C:UpdateOtherSpellSelect()
+        C:UpdateRacialSelect()
+        C:UpdateItemSelect()
+        ACR:NotifyChange("ElvUI")
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = false,
+}
+
+E.PopupDialogs["RESET_GLOBAL_SB_DATA"] = {
+    text = L["Accepting this will reset all of your SpellBinder global data. Are you sure?"],
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    OnAccept = function()
+        C:PurgeGlobalTables(true)
         C:UpdateItemSelect()
         ACR:NotifyChange("ElvUI")
     end,
@@ -93,6 +114,14 @@ function C:PurgeTables(purgeAll)
     if (purgeAll) then
         E.db.SpellBinder.ActiveBindings = table.wipe(E.db.SpellBinder.ActiveBindings)
         E.db.SpellBinder.ActiveSpecBindings = table.wipe(E.db.SpellBinder.ActiveSpecBindings)
+    end
+end
+
+function C:PurgeGlobalTables(purgeAll)
+    -- These tables should always start empty
+	GlobalActiveBindingsArgs = table.wipe(GlobalActiveBindingsArgs)
+    if (purgeAll) then
+        ElvUI_SpellBinderGlobalDB.GlobalBindings = table.wipe(ElvUI_SpellBinderGlobalDB.GlobalBindings)
     end
 end
 
@@ -138,6 +167,24 @@ function C:UpdateOtherSpellSelect()
     ACR:NotifyChange("ElvUI")
 end
 
+function C:UpdateRacialSelect() 
+    -- Clear all target table data
+    UsableRacials = table.wipe(UsableRacials)
+
+    table.foreach(addon.HealingSpells["RACIAL"],
+        function(k, v) C:SetIfUsable(UsableRacials, k, v) end)
+
+    table.foreach(addon.OtherSpells["RACIAL"],
+        function(k, v) C:SetIfUsable(UsableRacials, k, v) end)
+
+    E.Options.args.SpellBinder.args.globalBindingsGroup.args.racials.values = UsableRacials
+    local a = addon:TableKeysToSortedArray(UsableRacials)
+
+    SelectedRacial = a[1]
+
+    ACR:NotifyChange("ElvUI")
+end
+
 function C:ProcessItem(bag, slot, itemID)
     if not itemID then return end
 
@@ -178,20 +225,27 @@ function C:UpdateItemSelect()
     end
 
     E.Options.args.SpellBinder.args.bindingsGroup.args.items.values = UsableItems
+    E.Options.args.SpellBinder.args.globalBindingsGroup.args.items.values = UsableItems
     local a = addon:TableKeysToSortedArray(UsableItems)
 
     SelectedItem = a[1]
     ACR:NotifyChange("ElvUI")
 end
 
-function C:UpdateActiveBindingsGroup(key, binding)
+function C:UpdateActiveBindingsGroup(key, binding, global)
     local i = 1
     local spellText = ""
     local bindingID = ""
 
+	if  global == nil then global = false end
+
+	nameColor = "|c0033CC33"
     if binding.type == "spell" then
         local usable, nomana = IsUsableSpell(binding.ability)
-        if not usable and not nomana then return end
+        if not usable and not nomana then 
+			if global == true then nameColor = "|c00CC3333"
+			else return end
+		end
 
         local _, _, _, _, _, _, spellID = GetSpellInfo(binding.ability)
         while true do
@@ -201,26 +255,36 @@ function C:UpdateActiveBindingsGroup(key, binding)
             if spellName == binding.ability then spellText = addon:GetSpellText(i, BOOKTYPE_SPELL, binding.type) end
             i = i + 1
         end
-        bindingID = "spell_"..spellID
+		if spellID then
+			bindingID = "spell_"..spellID
+		else
+			bindingID = "Inactive_"..binding.ability
+		end
     elseif binding.type == "item" then
         if (addon.UsableItemMap[binding.ability] ~= nil) then
             local bag = addon.UsableItemMap[binding.ability].bag
             local slot = addon.UsableItemMap[binding.ability].slot
             spellText = addon:GetSpellText(bag, slot, binding.type)
-        end
-        bindingID = "item_".. addon.UsableItemMap[binding.ability].id
+			bindingID = "item_".. addon.UsableItemMap[binding.ability].id
+		else 
+			bindingID = "Inactive_".. binding.ability
+			nameColor = "|c00CC3333"
+		end
     elseif binding.type == "command" then
         bindingID = binding.ability
     end
 
-    --local abilityIDString = binding.ability:gsub("%s+", "")
-    --abilityIDString = binding.ability:gsub("'", "")
+	local bindingsTable = addon.ActiveBindingsTable
+	local bindingsArgs = ActiveBindingsArgs
+	if global == true then
+		bindingsTable = ElvUI_SpellBinderGlobalDB.GlobalBindings
+		bindingsArgs = GlobalActiveBindingsArgs
+	end
 
-    --ActiveBindingsArgs[abilityIDString] = {
-    ActiveBindingsArgs[bindingID] = {
+    bindingsArgs[bindingID] = {
         order = 0,
         type = "group",
-        name = binding.ability .. " (" .. binding.binding .. ")",
+        name = nameColor .. binding.ability .. "|r" .. " (" .. binding.binding .. ")",
         args = {
             abilityDesc = {
                 order = 1,
@@ -245,8 +309,8 @@ function C:UpdateActiveBindingsGroup(key, binding)
                 name = L["Delete"],
                 buttonElvUI = true,
                 func = function()
-                    addon.ActiveBindingsTable[key] = nil
-                    ActiveBindingsArgs[bindingID] = nil
+                    bindingsTable[key] = nil
+                    bindingsArgs[bindingID] = nil
                     ACR:NotifyChange("ElvUI")
                     addon:UpdateAllAttributes()
                 end,
@@ -254,27 +318,53 @@ function C:UpdateActiveBindingsGroup(key, binding)
             },
         },
     }
-    E.Options.args.SpellBinder.args.bindingsGroup.args.activeBindings.args = ActiveBindingsArgs
+	if global == true then
+		E.Options.args.SpellBinder.args.globalBindingsGroup.args.activeBindings.args = GlobalActiveBindingsArgs
+	else
+		E.Options.args.SpellBinder.args.bindingsGroup.args.activeBindings.args = ActiveBindingsArgs
+	end
     ACR:NotifyChange("ElvUI")
 end
 
 function C:UpdateActiveBindings()
     E.private.SpellBinder.ActiveBindingsArgs = table.wipe(ActiveBindingsArgs)
+    E.private.SpellBinder.GlobalActiveBindingsArgs = table.wipe(GlobalActiveBindingsArgs)
 
     for key, value in pairs(addon.ActiveBindingsTable) do
         C:UpdateActiveBindingsGroup(key, value)
     end
 
+	if ElvUI_SpellBinderGlobalDB.GlobalBindings ~= nil then
+		for key, value in pairs(ElvUI_SpellBinderGlobalDB.GlobalBindings) do
+			C:UpdateActiveBindingsGroup(key, value, true)
+		end
+	end
     ACR:NotifyChange("ElvUI")
 end
 
-function C:BindAbility(table, selected, type)
+function C:BindAbility(table, selected, type, global)
     if selected == nil or selected == "" then
         UIErrorsFrame:AddMessage("Error: No ability selected", 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 5)
         return
     end
 
+	local bindingsTable = addon.ActiveBindingsTable
+	if global ~= nil and global == true then
+		bindingsTable = ElvUI_SpellBinderGlobalDB.GlobalBindings
+	end
+
     local text = addon:GetBinding()
+
+	if ElvUI_SpellBinderGlobalDB.GlobalBindings ~= nil then
+		for _, v in pairs(ElvUI_SpellBinderGlobalDB.GlobalBindings) do
+			 if v.binding == text then
+				 local msg = "ElvUI_SpellBinder: " .. v.ability .. " is already globally bound to " .. text
+				 UIErrorsFrame:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 5)
+				 DEFAULT_CHAT_FRAME:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"])
+				 return
+			end
+		end
+	end
 
     for _, v in pairs(addon.ActiveBindingsTable) do
          if v.binding == text then
@@ -285,12 +375,12 @@ function C:BindAbility(table, selected, type)
         end
     end
 
-    addon.ActiveBindingsTable[selected] = nil
-    addon.ActiveBindingsTable[selected] = {}
-    addon.ActiveBindingsTable[selected].ability = table[selected]
-    addon.ActiveBindingsTable[selected].binding = text
-    addon.ActiveBindingsTable[selected].type = type
-    C:UpdateActiveBindingsGroup(selected, addon.ActiveBindingsTable[selected])
+    bindingsTable[selected] = nil
+    bindingsTable[selected] = {}
+    bindingsTable[selected].ability = table[selected]
+    bindingsTable[selected].binding = text
+    bindingsTable[selected].type = type
+    C:UpdateActiveBindingsGroup(selected, bindingsTable[selected], global)
 
 end
 
@@ -451,8 +541,104 @@ function C:InsertOptions()
                     },
 				},
 			},
-            bindingsGroup = {
+			globalBindingsGroup = {
                 order = 3,
+                type = "group",
+                name = L["Global Bindings"],
+                args = {
+                    intro = {
+                        order = 0,
+                        type = "description",
+                        name = L["Select the action to bind, then click \"Bind\" with the key combination you'd like to use\nThese bindings will apply to all characterrs"],
+                    },
+                    activeBindings = {
+                        order = 3,
+                        type = "group",
+                        name = L["Active Bindings"],
+                        width = half,
+                        childGroups = "tree",
+                        args = GlobalActiveBindingsArgs,
+                    },
+					racials = {
+                        order = 4,
+                        type = "select",
+                        name = "Racials",
+                        desc = L["List of available racial abilities"],
+                        get = function(info) return SelectedRacial end,
+                        set = function(info, value) SelectedRacial = value end,
+                        values = UsableRacials
+                    },
+                    RacialsBind = {
+                        order = 5,
+                        type = "execute",
+                        name = L["Bind"],
+                        buttonElvUI = true,
+                        width = "half",
+                        func = function()
+                            C:BindAbility(UsableRacials, SelectedRacial, "spell", true)
+                            addon:UpdateAllAttributes()
+                        end,
+                        disabled = function() return not E:GetModule("SpellBinder"); end,
+                    },
+                    items = {
+                        order = 6,
+                        type = "select",
+                        name = "Items",
+                        desc = L["List of available items"],
+                        get = function(info) return SelectedItem end,
+                        set = function(info, value) SelectedItem = value end,
+                        values = UsableItems
+                    },
+                    itemsBind = {
+                        order = 7,
+                        type = "execute",
+                        name = L["Bind"],
+                        buttonElvUI = true,
+                        width = "half",
+                        func = function()
+                            C:BindAbility(UsableItems, SelectedItem, "item", true)
+                            addon:UpdateAllAttributes()
+                        end,
+                        disabled = function() return not E:GetModule("SpellBinder"); end,
+                    },
+                    commands = {
+                        order = 8,
+                        type = "select",
+                        name = "Commands",
+                        desc = L["List of available commands"],
+                        get = function(info) return SelectedCommand end,
+                        set = function(info, value) SelectedCommand = value end,
+                        values = UsableCommands,
+                    },
+                    commandsBind = {
+                        order = 9,
+                        type = "execute",
+                        name = L["Bind"],
+                        buttonElvUI = true,
+                        width = "half",
+                        func = function()
+                            C:BindAbility(UsableCommands, SelectedCommand, "command", true)
+                            addon:UpdateAllAttributes()
+                        end,
+                        disabled = function() return not E:GetModule("SpellBinder"); end,
+                    },
+					spacer = {
+                        order = 10,
+                        type = "description",
+                        name = ""
+                    },
+                    purgeButton = {
+                        order = 11,
+                        type = "execute",
+                        name = L["Purge All Data"],
+                        buttonElvUI = true,
+                        func = function() E:StaticPopup_Show("RESET_GLOBAL_SB_DATA") end,
+                        disabled = function() return not E:GetModule("SpellBinder"); end,
+                    },
+                },
+			},
+            bindingsGroup = {
+                order = 4,
                 type = "group",
                 name = L["Bindings"],
                 args = {
@@ -554,7 +740,7 @@ function C:InsertOptions()
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
                     purgeButton = {
-                        order = 101,
+                        order = 11,
                         type = "execute",
                         name = L["Purge All Data"],
                         buttonElvUI = true,
@@ -570,6 +756,7 @@ end
 function C:Initialize()
 	EP:RegisterPlugin(addonName, C.InsertOptions)
     C:PurgeTables()
+    C:PurgeGlobalTables()
     addon.ActiveBindingsTable = E.db.SpellBinder.ActiveBindings
 end
 

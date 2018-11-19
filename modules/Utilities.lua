@@ -2,6 +2,20 @@ local E, L, V, P, G = unpack(ElvUI) -- Engine, Locales, PrivateDB, ProfileDB, Gl
 
 local addonName, addon = ...
 
+function addon:mpairs(t, ...)
+  local i, a, k, v = 1, {...}
+  return
+    function()
+      repeat
+        k, v = next(t, k)
+        if k == nil then
+          i, t = i + 1, a[i]
+        end
+      until k ~= nil or not t
+      return k, v
+    end
+end
+
 -- Prints all the key value pairs in the given table (See python's dir() function)
 function addon:dir(t)
     for k, v in pairs(t) do
@@ -83,7 +97,7 @@ function addon:dump (tbl, indent)
         formatting = string.rep("  ", indent) .. k .. ": "
         if type(v) == "table" then
             print(formatting)
-            dump(v, indent+1)
+            addon:dump(v, indent + 4)
         elseif type(v) == 'boolean' then
             print(formatting .. tostring(v))
         elseif type(v) == 'vector' then

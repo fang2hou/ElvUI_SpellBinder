@@ -85,7 +85,6 @@ addon.HealingSpells = {
         ["ESSENCE_FONT"] = L["Essence Font"],
     },
     ["WARRIOR"] = {
-
     },
     ["MAGE"] = {
     },
@@ -95,6 +94,8 @@ addon.HealingSpells = {
     ["WARLOCK"] = {
         ["HEALTH_FUNNEL"] = L["Health Funnel"],
     },
+	["DEMONHUNTER"] = {
+	},
     ["RACIAL"] = {
         ["GIFT_OF_THE_NAARU"] = L["Gift of the Naaru"],
     },
@@ -181,6 +182,12 @@ addon.OtherSpells = {
     ["WARLOCK"] = {
         ["LIFE_TAP"] = L["Life Tap"],
     },
+	["DEMONHUNTER"] = {
+		["DEMON_SPIKES"] = L["Demon Spikes"],
+		["IMMOLATION_AURA"] = L["Immolation Aura"],
+		["SOUL_BARRIER"] = L["Soul Barrier"],
+
+	},
     ["RACIAL"] = {
         ["STONEFORM"] = L["Stoneform"],
         ["ESCAPE_ARTIST"] = L["Escape Artist"],
