@@ -15,8 +15,8 @@ P["SpellBinder"] = {
 	["SpecBasedBindings"] = false,
 	["SpellBinderEnabled"] = true,
     ["ModifyTooltips"] = true,
-    ["ActiveBindings"] = {},
-    ["ActiveSpecBindings"] = {},
+    ["ActiveBindings"] = { },
+    ["ActiveSpecBindings"] = { },
     ["TTAbilityColor"] = {
         ["r"] = 0.2,
         ["g"] = 0.8,
@@ -38,13 +38,15 @@ V["SpellBinder"] = { }
 
 local ActiveBindingsArgs = {}
 local GlobalActiveBindingsArgs = {}
-local SelectedHealAbility = ""
-local SelectedOtherAbility = ""
+local SelectedHelpfulAbility = ""
+local SelectedHarmfulAbility = ""
 local SelectedCommand = "ASSIST"
 local SelectedItem = ""
 local SelectedRacial = ""
-local UsableHealingSpells = {}
-local UsableOtherSpells = {}
+local UsableSpells = {
+	["Helpful"] = {},
+	["Harmful"] = {},
+}
 local UsableRacials = {} 
 local UsableItems = {} 
 
@@ -76,8 +78,7 @@ E.PopupDialogs["RESET_SB_DATA"] = {
     button2 = CANCEL,
     OnAccept = function()
         C:PurgeTables(true)
-        C:UpdateHealingSpellSelect()
-        C:UpdateOtherSpellSelect()
+        C:UpdateSpellSelect()
         C:UpdateRacialSelect()
         C:UpdateItemSelect()
         ACR:NotifyChange("ElvUI")
@@ -101,15 +102,11 @@ E.PopupDialogs["RESET_GLOBAL_SB_DATA"] = {
     hideOnEscape = false,
 }
 
-function C:SetIfUsable(table, key, spell)
-    local usable, nomana = IsUsableSpell(spell)
-    if usable or nomana then table[key] = spell end
-end
-
 function C:PurgeTables(purgeAll)
     -- These tables should always start empty
-    UsableHealingSpells = table.wipe(UsableHealingSpells)
-    UsableOtherSpells = table.wipe(UsableOtherSpells)
+    UsableSpells.Helpful = table.wipe(UsableSpells.Helpful)
+    UsableSpells.Harmful = table.wipe(UsableSpells.Harmful)
+
     ActiveBindingsArgs = table.wipe(ActiveBindingsArgs)
     if (purgeAll) then
         E.db.SpellBinder.ActiveBindings = table.wipe(E.db.SpellBinder.ActiveBindings)
@@ -125,44 +122,92 @@ function C:PurgeGlobalTables(purgeAll)
     end
 end
 
-function C:UpdateHealingSpellSelect()
-    -- Clear all target table data
-    UsableHealingSpells = table.wipe(UsableHealingSpells)
-
-    if addon.HealingSpells[addon.PlayerClass] then
-        -- Add spells to the target table if they're usable
-        table.foreach(addon.HealingSpells[addon.PlayerClass],
-            function(k, v) C:SetIfUsable(UsableHealingSpells, k, v) end)
-    end
-
-    table.foreach(addon.HealingSpells["RACIAL"],
-        function(k, v) C:SetIfUsable(UsableHealingSpells, k, v) end)
-
-    E.Options.args.SpellBinder.args.bindingsGroup.args.healingSpells.values = UsableHealingSpells
-    local a = addon:TableKeysToSortedArray(UsableHealingSpells)
-
-    SelectedHealAbility = a[1]
-
-    ACR:NotifyChange("ElvUI")
+function C:SetIfUsable(table, key, spell)
+    local usable, nomana = IsUsableSpell(spell)
+    if usable or nomana then table[key] = spell end
 end
 
-function C:UpdateOtherSpellSelect()
+function C:ShouldListSpell(spellIndex, spellNum)
+	local spellName, spellID, slotType, special
+	if spellIndex ~= nil then
+		spellName, _, spellID = GetSpellBookItemName(spellIndex, BOOKTYPE_SPELL)
+		slotType, special = GetSpellBookItemInfo(spellIndex, BOOKTYPE_SPELL)
+	elseif spellNum ~= nil then
+		spellName = GetSpellInfo(spellNum)
+		spellID = spellNum
+	else
+		return false
+	end
+
+	if addon.Blacklist[spellID] ~= nil then
+		return false
+	end
+
+	local isPassive = true
+	if spellIndex ~= nil then isPassive = IsPassiveSpell(spellIndex, BOOKTYPE_SPELL)
+	elseif spellID ~= nil then isPassive = IsPassiveSpell(spellName) end
+
+	return not isPassive, spellID, spellName, slotType, special
+end
+
+function C:ListSpell(spellName, spellID)
+	if IsHarmfulSpell(spellName) == true then
+		UsableSpells.Harmful[spellID] = spellName		
+	else
+		UsableSpells.Helpful[spellID] = spellName
+	end
+end
+
+function C:ProcessFlyout(flyoutID)
+	-- TODO: Deal with flyout spells
+	local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutID)
+	for flyoutSlot = 1, numSlots do
+		spellID, _, isKnown = GetFlyoutSlotInfo(flyoutID, flyoutSlot)
+		local shouldList, spellID, spellName = C:ShouldListSpell(nil, spellID)
+		if isKnown and shouldList then C:ListSpell(spellName, spellID) end
+	end
+end
+
+function C:ProcessSpell(spellIndex)
+	local shouldList, spellID, spellName, slotType, special = C:ShouldListSpell(spellIndex)
+	if shouldList then
+		if slotType == "SPELL" or slotType == "PETACTION" then
+			C:ListSpell(spellName, spellID)
+		elseif slotType == "FLYOUT" then
+			C:ProcessFlyout(special)
+		end
+	end
+end
+
+function C:ProcessSpellBookTab(tabIndex)
+	local _, _, offset, numSpells, _, isOffSpec = GetSpellTabInfo(tabIndex)
+	if (isOffSpec ~= 0) then return end
+
+	local spellIndex = 1
+	for spellIndex = (offset + 1), (offset + numSpells) do
+		C:ProcessSpell(spellIndex)
+		spellIndex = spellIndex + 1
+	end
+end
+
+function C:UpdateSpellSelect()
     -- Clear all target table data
-    UsableOtherSpells = table.wipe(UsableOtherSpells)
+    UsableSpells.Helpful = table.wipe(UsableSpells.Helpful)
+    UsableSpells.Harmful = table.wipe(UsableSpells.Harmful)
 
-    if addon.OtherSpells[addon.PlayerClass] then
-        -- Add spells to the target table if they're usable
-        table.foreach(addon.OtherSpells[addon.PlayerClass],
-            function(k, v) C:SetIfUsable(UsableOtherSpells, k, v) end)
-    end
+	local tabIndex = 1
+	for tabIndex = 1, GetNumSpellTabs() do 
+		C:ProcessSpellBookTab(tabIndex) 
+		tabIndex = tabIndex + 1
+	end
 
-    table.foreach(addon.OtherSpells["RACIAL"],
-        function(k, v) C:SetIfUsable(UsableOtherSpells, k, v) end)
+	E.Options.args.SpellBinder.args.bindingsGroup.args.helpfulSpells.values = UsableSpells.Helpful
+	E.Options.args.SpellBinder.args.bindingsGroup.args.harmfulSpells.values = UsableSpells.Harmful
+    local a = addon:TableKeysToSortedArray(UsableSpells.Helpful)
+    local b = addon:TableKeysToSortedArray(UsableSpells.Harmful)
 
-    E.Options.args.SpellBinder.args.bindingsGroup.args.otherSpells.values = UsableOtherSpells
-    local a = addon:TableKeysToSortedArray(UsableOtherSpells)
-
-    SelectedOtherAbility = a[1]
+    SelectedHelpfulAbility = a[1]
+    SelectedHarmfulAbility = b[1]
 
     ACR:NotifyChange("ElvUI")
 end
@@ -171,11 +216,7 @@ function C:UpdateRacialSelect()
     -- Clear all target table data
     UsableRacials = table.wipe(UsableRacials)
 
-    table.foreach(addon.HealingSpells["RACIAL"],
-        function(k, v) C:SetIfUsable(UsableRacials, k, v) end)
-
-    table.foreach(addon.OtherSpells["RACIAL"],
-        function(k, v) C:SetIfUsable(UsableRacials, k, v) end)
+    table.foreach(addon.Racials, function(k, v) C:SetIfUsable(UsableRacials, k, v) end)
 
     E.Options.args.SpellBinder.args.globalBindingsGroup.args.racials.values = UsableRacials
     local a = addon:TableKeysToSortedArray(UsableRacials)
@@ -232,18 +273,20 @@ function C:UpdateItemSelect()
     ACR:NotifyChange("ElvUI")
 end
 
-function C:UpdateActiveBindingsGroup(key, binding, global)
+function C:UpdateActiveBindingsGroup(key, binding, harmful, global)
     local i = 1
     local spellText = ""
     local bindingID = ""
 
 	if  global == nil then global = false end
 
-	nameColor = "|c0033CC33"
+	if harmful then nameColor = "|c00CC3333"
+	else nameColor = "|c0033CC33" end
+
     if binding.type == "spell" then
         local usable, nomana = IsUsableSpell(binding.ability)
         if not usable and not nomana then 
-			if global == true then nameColor = "|c00CC3333"
+			if global == true then nameColor = "|c00636363"
 			else return end
 		end
 
@@ -268,7 +311,7 @@ function C:UpdateActiveBindingsGroup(key, binding, global)
 			bindingID = "item_".. addon.UsableItemMap[binding.ability].id
 		else 
 			bindingID = "Inactive_".. binding.ability
-			nameColor = "|c00CC3333"
+			nameColor = "|c00636363"
 		end
     elseif binding.type == "command" then
         bindingID = binding.ability
@@ -284,7 +327,7 @@ function C:UpdateActiveBindingsGroup(key, binding, global)
     bindingsArgs[bindingID] = {
         order = 0,
         type = "group",
-        name = nameColor .. binding.ability .. "|r" .. " (" .. binding.binding .. ")",
+        name = nameColor .. binding.ability .. "|r" .. " |c00FFFFFF(" .. binding.binding .. ")|r",
         args = {
             abilityDesc = {
                 order = 1,
@@ -330,19 +373,21 @@ function C:UpdateActiveBindings()
     E.private.SpellBinder.ActiveBindingsArgs = table.wipe(ActiveBindingsArgs)
     E.private.SpellBinder.GlobalActiveBindingsArgs = table.wipe(GlobalActiveBindingsArgs)
 
-    for key, value in pairs(addon.ActiveBindingsTable) do
-        C:UpdateActiveBindingsGroup(key, value)
+    for k, v in pairs(addon.ActiveBindingsTable) do
+		if v.harmful == nil then v.harmful = false end
+        C:UpdateActiveBindingsGroup(k, v, v.harmful, false)
     end
 
 	if ElvUI_SpellBinderGlobalDB.GlobalBindings ~= nil then
-		for key, value in pairs(ElvUI_SpellBinderGlobalDB.GlobalBindings) do
-			C:UpdateActiveBindingsGroup(key, value, true)
+		for k, v in pairs(ElvUI_SpellBinderGlobalDB.GlobalBindings) do
+			if v.harmful == nil then v.harmful = false end
+			C:UpdateActiveBindingsGroup(k, v, v.harmful, true)
 		end
 	end
     ACR:NotifyChange("ElvUI")
 end
 
-function C:BindAbility(table, selected, type, global)
+function C:BindAbility(table, selected, type, harmful, global)
     if selected == nil or selected == "" then
         UIErrorsFrame:AddMessage("Error: No ability selected", 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 5)
         return
@@ -357,7 +402,7 @@ function C:BindAbility(table, selected, type, global)
 
 	if ElvUI_SpellBinderGlobalDB.GlobalBindings ~= nil then
 		for _, v in pairs(ElvUI_SpellBinderGlobalDB.GlobalBindings) do
-			 if v.binding == text then
+			 if v.binding == text and (v.harmful == harmful or v.type ~= "spell") then
 				 local msg = "ElvUI_SpellBinder: " .. v.ability .. " is already globally bound to " .. text
 				 UIErrorsFrame:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 5)
 				 DEFAULT_CHAT_FRAME:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"])
@@ -367,7 +412,7 @@ function C:BindAbility(table, selected, type, global)
 	end
 
     for _, v in pairs(addon.ActiveBindingsTable) do
-         if v.binding == text then
+         if v.binding == text and (v.harmful == harmful or v.type ~= "spell") then
              local msg = "ElvUI_SpellBinder: " .. v.ability .. " is already bound to " .. text
              UIErrorsFrame:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 5)
              DEFAULT_CHAT_FRAME:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"])
@@ -380,7 +425,8 @@ function C:BindAbility(table, selected, type, global)
     bindingsTable[selected].ability = table[selected]
     bindingsTable[selected].binding = text
     bindingsTable[selected].type = type
-    C:UpdateActiveBindingsGroup(selected, bindingsTable[selected], global)
+    bindingsTable[selected].harmful = harmful
+    C:UpdateActiveBindingsGroup(selected, bindingsTable[selected], harmful, global)
 
 end
 
@@ -545,6 +591,7 @@ function C:InsertOptions()
                 order = 3,
                 type = "group",
                 name = L["Global Bindings"],
+				childGroups = "tab",
                 args = {
                     intro = {
                         order = 0,
@@ -554,9 +601,7 @@ function C:InsertOptions()
                     activeBindings = {
                         order = 3,
                         type = "group",
-                        name = L["Active Bindings"],
-                        width = half,
-                        childGroups = "tree",
+                        name = L["Active Global Bindings"],
                         args = GlobalActiveBindingsArgs,
                     },
 					racials = {
@@ -575,7 +620,7 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableRacials, SelectedRacial, "spell", true)
+                            C:BindAbility(UsableRacials, SelectedRacial, "spell", false, true)
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
@@ -596,7 +641,7 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableItems, SelectedItem, "item", true)
+                            C:BindAbility(UsableItems, SelectedItem, "item", false, true)
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
@@ -617,7 +662,7 @@ function C:InsertOptions()
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableCommands, SelectedCommand, "command", true)
+                            C:BindAbility(UsableCommands, SelectedCommand, "command", false, true)
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
@@ -641,64 +686,57 @@ function C:InsertOptions()
                 order = 4,
                 type = "group",
                 name = L["Bindings"],
+				childGroups = "tab",
                 args = {
                     intro = {
                         order = 0,
                         type = "description",
                         name = L["Select the action to bind, then click \"Bind\" with the key combination you'd like to use"],
                     },
-                    healingSpells = {
+                    helpfulSpells = {
                         order = 1,
                         type = "select",
-                        name = "Healing Spells",
-                        desc = "List of healing spells in your spellbook",
-                        get = function(info) return SelectedHealAbility end,
-                        set = function(info, value) SelectedHealAbility = value; end,
-                        values = UsableHealingSpells
+                        name = "Helpful Spells",
+                        desc = "List of helpful spells in your spellbook",
+                        get = function(info) return SelectedHelpfulAbility end,
+                        set = function(info, value) SelectedHelpfulAbility = value; end,
+                        values = UsableSpells.Helpful
                     },
-                    healingBind = {
+                    helpfulBind = {
                         order = 2,
                         type = "execute",
                         name = L["Bind"],
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableHealingSpells, SelectedHealAbility, "spell")
+                            C:BindAbility(UsableSpells.Helpful, SelectedHelpfulAbility, "spell", false, false)
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
-                    activeBindings = {
-                        order = 3,
-                        type = "group",
-                        name = L["Active Bindings"],
-                        customWidth = 500,
-                        childGroups = "tree",
-                        args = ActiveBindingsArgs,
-                    },
-                    otherSpells = {
-                        order = 4,
-                        type = "select",
-                        name = "Other Spells",
-                        desc = L["List of other spells in your spellbook"],
-                        get = function(info) return SelectedOtherAbility end,
-                        set = function(info, value) SelectedOtherAbility = value end,
-                        values = UsableOtherSpells
-                    },
-                    otherBind = {
+					harmfulSpells = {
                         order = 5,
+                        type = "select",
+                        name = "Harmful Spells",
+                        desc = "List of harmful spells in your spellbook",
+                        get = function(info) return SelectedHarmfulAbility end,
+                        set = function(info, value) SelectedHarmfulAbility = value; end,
+                        values = UsableSpells.Harmful
+                    },
+                    harmfulBind = {
+                        order = 6,
                         type = "execute",
                         name = L["Bind"],
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableOtherSpells, SelectedOtherAbility, "spell")
+                            C:BindAbility(UsableSpells.Harmful, SelectedHarmfulAbility, "spell", true, false)
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
-                    items = {
-                        order = 6,
+					items = {
+                        order = 9,
                         type = "select",
                         name = "Items",
                         desc = L["List of available items"],
@@ -707,19 +745,19 @@ function C:InsertOptions()
                         values = UsableItems
                     },
                     itemsBind = {
-                        order = 7,
+                        order = 10,
                         type = "execute",
                         name = L["Bind"],
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableItems, SelectedItem, "item")
+                            C:BindAbility(UsableItems, SelectedItem, "item", false, false)
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
                     commands = {
-                        order = 8,
+                        order = 11,
                         type = "select",
                         name = "Commands",
                         desc = L["List of available commands"],
@@ -728,24 +766,31 @@ function C:InsertOptions()
                         values = UsableCommands,
                     },
                     commandsBind = {
-                        order = 9,
+                        order = 12,
                         type = "execute",
                         name = L["Bind"],
                         buttonElvUI = true,
                         width = "half",
                         func = function()
-                            C:BindAbility(UsableCommands, SelectedCommand, "command")
+                            C:BindAbility(UsableCommands, SelectedCommand, "command", false, false)
                             addon:UpdateAllAttributes()
                         end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
                     },
                     purgeButton = {
-                        order = 11,
+                        order = 13,
                         type = "execute",
                         name = L["Purge All Data"],
                         buttonElvUI = true,
                         func = function() E:StaticPopup_Show("RESET_SB_DATA") end,
                         disabled = function() return not E:GetModule("SpellBinder"); end,
+                    },
+					activeBindings = {
+                        order = 14,
+                        type = "group",
+                        name = L["Active Bindings"],
+                        childGroups = "tree",
+                        args = ActiveBindingsArgs,
                     },
                 },
 			},

@@ -71,6 +71,23 @@ local ButtonToAttribute = {
     ["type15"] = "15",
 }
 
+local SPCostTypeText = {
+	["MANA"] = "Mana",
+	["RAGE"] = "Rage",
+	["FOCUS"] = "Focus",
+	["ENERGY"] = "Energy",
+	["COMBO_POINTS"] = "Combo Points",
+	["RUNES"] = "Runes",
+	["RUNIC_POWER"] = "Runic Power",
+	["SOUL_SHARDS"] = "Soul Shards",
+	["LUNAR_POWER"] = "Lunar Power",
+	["HOLY_POWER"] = "Holy Power",
+	["ALTERNATE"] = "Alternate",
+	["MAELSTROM"] = "Maelstrom",
+	["CHI"] = "Chi",
+	["INSANITY"] = "Insanity",
+}
+
 local ButtonOrder = { "LeftButton", "MiddleButton", "RightButton", "Button4", "Button5" }
 
 function SB:ShouldPutSpellInTooltip(spell, btext, type)
@@ -129,6 +146,9 @@ function SB:SB_OnTooltipSetUnit(t)
     if not E.db.SpellBinder.SpellBinderEnabled then return end
     if not E.db.SpellBinder.ModifyTooltips then return end
 
+	local enemyTarget = false
+	if UnitCanAttack("player", "mouseover") then enemyTarget = true end
+
     if not TooltipUpdateTimer then
         TooltipUpdateTimer = self:ScheduleRepeatingTimer("UpdateTooltip", 0.1)
     end
@@ -141,6 +161,7 @@ function SB:SB_OnTooltipSetUnit(t)
     --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
     for _, v in addon:mpairs(addon.ActiveBindingsTable, ElvUI_SpellBinderGlobalDB.GlobalBindings) do
         local button = SB:ShouldPutSpellInTooltip(v.ability, v.binding, v.type)
+		if v.harmful ~= enemyTarget then button = false end
         if button then
             -- Get cooldown info
             local start, duration = 0, 0
@@ -167,19 +188,20 @@ function SB:SB_OnTooltipSetUnit(t)
                 leftText = leftText .. " (" .. cd .. "s)"
             end
 
-            -- TODO: Handle Costs other than mana
             -- Get spell costs
             local costs = GetSpellPowerCost(v.ability)
             local rightText
             if v.type == "spell" and costs[1] then
                 local cost = costs[1].cost
+				local costText = "Power"
+				if addon:TableContains(SPCostTypeText, costs[1].name) then costText = SPCostTypeText[costs[1].name] end
                 if cost <= 0 then
                     cost = (UnitPower("player") * (costs[1].costPercent / 100))
                     cost = cost - (cost % 1)
                     cost = "~" .. tostring(cost)
                 end
 
-                local costString = string.format("%5s Mana", tostring(cost))
+                local costString = string.format("%5s %s", tostring(cost), costText)
                 rightText = "-" .. costString
             end
 
@@ -230,35 +252,44 @@ end
 function SB:GetClickAttributes()
     local add = {
         "local setupButton = self:GetFrameRef('sbsetup_button')",
-        "local button = setupButton or self"
+        "local button = setupButton or self",
     }
     local rem = {
         "local setupButton = self:GetFrameRef('sbsetup_button')",
-        "local button = setupButton or self"
+        "local button = setupButton or self",
     }
 
     -- Apply all currently active bindings
-    --for k, v in pairs(E.db.SpellBinder.ActiveBindings) do
     for k, v in addon:mpairs(addon.ActiveBindingsTable, ElvUI_SpellBinderGlobalDB.GlobalBindings) do
         local prefix, button = SB:GetAttributeString(v.binding)
         local attr = ButtonToAttribute[button]
 
         if v.type == "spell" or v.type == "item" then
+			local suffixType = ""
+			if v.harmful then suffixType = "-harm" 
+			else suffixType = "-help" end
+
+			if v.harmful then
+				add[#add + 1] = "button:SetAttribute('" .. prefix .. "harmbutton" .. attr .. "', 'harm" .. attr .. "')"
+				rem[#rem + 1] = "button:SetAttribute('" .. prefix .. "harmbutton" .. attr .. "', '')"
+			else
+				add[#add + 1] = "button:SetAttribute('" .. prefix .. "helpbutton" .. attr .. "', 'help" .. attr .. "')"
+				rem[#rem + 1] = "button:SetAttribute('" .. prefix .. "helpbutton" .. attr .. "', '')"
+			end
+
+			add[#add + 1] = "button:SetAttribute('" .. prefix .. "type" .. suffixType .. attr .. "', '" .. v.type .. "')"
+            add[#add + 1] = "button:SetAttribute('" .. prefix .. v.type .. suffixType .. attr .. "', \"" .. v.ability .. "\")"
+			rem[#rem + 1] = "button:SetAttribute('" .. prefix .. "type" .. suffixType .. attr .. "', 'nil')"
+			rem[#rem + 1] = "button:SetAttribute('" .. prefix .. v.type .. suffixType .. attr .. "', 'nil')"
+
+			-- If this was an unmodified left click or right click then reset to default behavior
             if prefix == "" and button == "type1" then
                 rem[#rem + 1] = "button:SetAttribute('type1', 'target')"
                 rem[#rem + 1] = "button:SetAttribute('spell1', 'nil')"
             elseif prefix == "" and button == "type2" then
                 rem[#rem + 1] = "button:SetAttribute('type2', 'togglemenu')"
                 rem[#rem + 1] = "button:SetAttribute('spell2', 'nil')"
-            else
-                rem[#rem + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'nil')"
-                rem[#rem + 1] = "button:SetAttribute('" .. prefix .. v.type .. attr .. "', 'nil')"
-            end
-
-            rem[#rem + 1] = "button:SetAttribute('item', 'nil')"
-
-            add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', '" .. v.type .. "')"
-            add[#add + 1] = "button:SetAttribute('" .. prefix .. v.type .. attr .. "', \"" .. v.ability .. "\")"
+			end
         elseif v.type == "command" then
             if k == "ASSIST" then
                 add[#add + 1] = "button:SetAttribute('" .. prefix .. button .. "', 'assist')"
@@ -352,8 +383,7 @@ end
 --------- MAIN ----------
 
 function SB:UpdateBindingTables()
-    C:UpdateHealingSpellSelect()
-    C:UpdateOtherSpellSelect()
+    C:UpdateSpellSelect()
     C:UpdateRacialSelect()
     C:UpdateItemSelect()
     C:UpdateActiveBindings()
@@ -392,8 +422,7 @@ function SB:OnPlayerEnterWorld()
 end
 
 function SB:OnPlayerLevelUp()
-    C:UpdateHealingSpellSelect()
-    C:UpdateOtherSpellSelect()
+    C:UpdateSpellSelect()
     C:UpdateRacialSelect()
 end
 
@@ -402,7 +431,10 @@ function SB:OnPlayerSpecializationChanged()
     if E.db.SpellBinder.SpecBasedBindings then
         local currentSpec = GetSpecialization()
         local _, playerSpec = GetSpecializationInfo(currentSpec)
-        addon.PlayerSpec = playerSpec or "None"
+		if playerSpec == nil then return end
+
+        addon.PlayerSpec = playerSpec
+
         if E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass] == nil then
             E.db.SpellBinder.ActiveSpecBindings[addon.PlayerClass] = {}
         end
