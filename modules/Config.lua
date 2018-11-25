@@ -263,52 +263,52 @@ function C:UpdateItemSelect()
     ACR:NotifyChange("ElvUI")
 end
 
-function C:CreateSpellBinding(spellName, harmful) 
+function C:CreateSpellBinding(binding) 
 	local spellText, nameColor, bindingID = "", "", ""
 
-	if harmful then nameColor = "|c00CC3333"
+	if binding.harmful then nameColor = "|c00CC3333"
 	else nameColor = "|c0033CC33" end
 
-	local usable, nomana = IsUsableSpell(spellName)
+	local usable, nomana = IsUsableSpell(binding.ability)
 	if not usable and not nomana then 
-		bindingID = "Inactive_"..spellName 
+		bindingID = "Inactive_" .. binding.ability 
 		nameColor = "|c00636363"
 		return bindingID, nameColor, spellText
 	end
 
-	local _, _, _, _, _, _, spellID = GetSpellInfo(spellName)
+	local _, _, _, _, _, _, spellID = GetSpellInfo(binding.ability)
 	local spellIndex = FindSpellBookSlotBySpellID(spellID)	
 	if spellIndex then spellText = addon:GetSpellText(spellIndex, BOOKTYPE_SPELL, "spell") end
 		
 	if spellID then
 		bindingID = "spell_"..spellID
 	else
-		bindingID = "Inactive_"..spellName
+		bindingID = "Inactive_" .. binding.ability
 	end
 
 	return bindingID, nameColor, spellText
 end
 
-function C:CreateItemBinding(itemName, harmful)
+function C:CreateItemBinding(binding)
 	local itemText, nameColor, bindingID = "", "", ""
 
-	if addon.UsableItemMap[itemName] == nil then
-		bindingID = "Inactive_"..itemName 
+	if addon.UsableItemMap[binding.ability] == nil then
+		bindingID = "Inactive_" .. binding.ability 
 		nameColor = "|c00636363"
 		return bindingID, nameColor, itemText
 	end
 
-	if harmful then nameColor = "|c00CC3333"
+	if binding.harmful then nameColor = "|c00CC3333"
 	else nameColor = "|c0033CC33" end
 
-	local item = addon.UsableItemMap[itemName]
+	local item = addon.UsableItemMap[binding.ability]
 	itemText = addon:GetSpellText(item.bag, item.slot, "item")
-	bindingID = "item_".. addon.UsableItemMap[itemName].id
+	bindingID = "item_".. addon.UsableItemMap[binding.ability].id
 
 	return bindingID, nameColor, itemText
 end
 
-function C:UpdateActiveBindingsGroup(key, binding, harmful, global)
+function C:UpdateActiveBindingsGroup(key, binding, global)
     local spellText = ""
     local bindingID = ""
 	local nameColor = "|c0033CC33"
@@ -316,9 +316,9 @@ function C:UpdateActiveBindingsGroup(key, binding, harmful, global)
 	if  global == nil then global = false end
 
     if binding.type == "spell" then
-		bindingID, nameColor, spellText = C:CreateSpellBinding(binding.ability, harmful)
+		bindingID, nameColor, spellText = C:CreateSpellBinding(binding)
     elseif binding.type == "item" then
-		bindingID, nameColor, spellText = C:CreateItemBinding(binding.ability, harmful)
+		bindingID, nameColor, spellText = C:CreateItemBinding(binding)
     elseif binding.type == "command" then
         bindingID = binding.ability
     end
@@ -381,13 +381,13 @@ function C:UpdateActiveBindings()
 
     for k, v in pairs(addon.ActiveBindingsTable) do
 		if v.harmful == nil then v.harmful = false end
-        C:UpdateActiveBindingsGroup(k, v, v.harmful, false)
+        C:UpdateActiveBindingsGroup(k, v, false)
     end
 
 	if ElvUI_SpellBinderGlobalDB.GlobalBindings ~= nil then
 		for k, v in pairs(ElvUI_SpellBinderGlobalDB.GlobalBindings) do
 			if v.harmful == nil then v.harmful = false end
-			C:UpdateActiveBindingsGroup(k, v, v.harmful, true)
+			C:UpdateActiveBindingsGroup(k, v, true)
 		end
 	end
     ACR:NotifyChange("ElvUI")
@@ -432,7 +432,7 @@ function C:BindAbility(table, selected, type, harmful, global)
     bindingsTable[selected].binding = text
     bindingsTable[selected].type = type
     bindingsTable[selected].harmful = harmful
-    C:UpdateActiveBindingsGroup(selected, bindingsTable[selected], harmful, global)
+    C:UpdateActiveBindingsGroup(selected, bindingsTable[selected], global)
 
 end
 
