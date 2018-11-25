@@ -190,19 +190,19 @@ function SB:SB_OnTooltipSetUnit(t)
 
             -- Get spell costs
             local costs = GetSpellPowerCost(v.ability)
-            local rightText
-            if v.type == "spell" and costs[1] then
-                local cost = costs[1].cost
-				local costText = "Power"
-				if addon:TableContains(SPCostTypeText, costs[1].name) then costText = SPCostTypeText[costs[1].name] end
-                if cost <= 0 then
-                    cost = (UnitPower("player") * (costs[1].costPercent / 100))
-                    cost = cost - (cost % 1)
-                    cost = "~" .. tostring(cost)
-                end
+            local rightText = ""
+            if v.type == "spell" then
+				for k, v in pairs(costs) do
+					local costText = "Power"
+					if addon:TableContains(SPCostTypeText, v.name) then costText = SPCostTypeText[v.name] end
 
-                local costString = string.format("%5s %s", tostring(cost), costText)
-                rightText = "-" .. costString
+					if rightText == "" then 
+						costText = string.format("%5s %s", tostring(v.cost), costText)
+						rightText = rightText .. "-" .. costText
+					else 
+						rightText = rightText .. ", " .. v.cost .. " " .. costText
+					end
+				end
             end
 
             leftText = string.format("%-20s", leftText)

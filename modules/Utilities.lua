@@ -143,3 +143,44 @@ function addon:FireMessage(name, ...)
         addon[handler](addon, event, ...)
     end
 end
+
+addon.TARGET_ALLY = 0
+addon.TARGET_ENEMY = 1
+addon.TARGET_BOTH = 2
+
+function addon:GetSpellTargetType(spellIndex)
+	local helpful = addon:IsHelpfulSpell(spellIndex)
+	local harmful = addon:IsHarmfulSpell(spellIndex)
+
+	if helpful and harmful then return TARGET_BOTH end
+
+	if helpful then return TARGET_ALLY end
+	if harmful then return TARGET_ENEMY end
+
+	return nil
+end
+
+function addon:IsHelpfulSpell(spellIndex)
+	-- Check local tables first so we can override these idiotic functions if necessary
+	local _, _, spellID = GetSpellBookItemName(spellIndex, BOOKTYPE_SPELL)
+	local helpful = addon:TableContains(addon.HelpfulWhitelist, spellID)
+
+	if not helpful then	
+		helpful = IsHelpfulSpell(spellIndex, BOOKTYPE_SPELL)
+	end
+
+	return helpful
+end
+
+function addon:IsHarmfulSpell(spellIndex)
+	-- Check local tables first so we can override these idiotic functions if necessary
+	local _, _, spellID = GetSpellBookItemName(spellIndex, BOOKTYPE_SPELL)
+	local harmful = addon:TableContains(addon.HarmfulWhitelist, spellID)
+
+	if not harmful then	
+		harmful = IsHarmfulSpell(spellIndex, BOOKTYPE_SPELL)
+	end
+
+	return harmful
+end
+

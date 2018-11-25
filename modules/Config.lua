@@ -122,61 +122,51 @@ function C:PurgeGlobalTables(purgeAll)
     end
 end
 
+
 function C:SetIfUsable(table, key, spell)
     local usable, nomana = IsUsableSpell(spell)
     if usable or nomana then table[key] = spell end
 end
 
-function C:ShouldListSpell(spellIndex, spellNum)
-	local spellName, spellID, slotType, special
-	if spellIndex ~= nil then
-		spellName, _, spellID = GetSpellBookItemName(spellIndex, BOOKTYPE_SPELL)
-		slotType, special = GetSpellBookItemInfo(spellIndex, BOOKTYPE_SPELL)
-	elseif spellNum ~= nil then
-		spellName = GetSpellInfo(spellNum)
-		spellID = spellNum
-	else
-		return false
-	end
+function C:ShouldListSpell(spellIndex, spellID)
+	local spellName, _, spellID = GetSpellBookItemName(spellIndex, BOOKTYPE_SPELL)
+	if addon.Blacklist[spellID] ~= nil then return nil end
+	if IsPassiveSpell(spellIndex, BOOKTYPE_SPELL) then return nil end
 
-	if addon.Blacklist[spellID] ~= nil then
-		return false
-	end
-
-	local isPassive = true
-	if spellIndex ~= nil then isPassive = IsPassiveSpell(spellIndex, BOOKTYPE_SPELL)
-	elseif spellID ~= nil then isPassive = IsPassiveSpell(spellName) end
-
-	return not isPassive, spellID, spellName, slotType, special
+	return spellID
 end
 
-function C:ListSpell(spellName, spellID)
-	if IsHarmfulSpell(spellName) == true then
+function C:ListSpell(spellIndex)
+	local spellName, _, spellID = GetSpellBookItemName(spellIndex, BOOKTYPE_SPELL)
+
+	if addon:IsHarmfulSpell(spellIndex) == true then
 		UsableSpells.Harmful[spellID] = spellName		
-	else
+	elseif addon:IsHelpfulSpell(spellIndex) == true then
 		UsableSpells.Helpful[spellID] = spellName
+	else
+		 local msg = "ElvUI_SpellBinder: " .. spellName .. " ["..spellID.."] is not flagged as helpful or harmful.  Ignoring!"
+		 UIErrorsFrame:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"], 5)
+		 DEFAULT_CHAT_FRAME:AddMessage(msg, 1.0, 0.5, 0.0, ChatTypeInfo["SYSTEM"])
 	end
 end
 
 function C:ProcessFlyout(flyoutID)
-	-- TODO: Deal with flyout spells
 	local _, _, numSlots, isKnown = GetFlyoutInfo(flyoutID)
 	for flyoutSlot = 1, numSlots do
-		spellID, _, isKnown = GetFlyoutSlotInfo(flyoutID, flyoutSlot)
-		local shouldList, spellID, spellName = C:ShouldListSpell(nil, spellID)
-		if isKnown and shouldList then C:ListSpell(spellName, spellID) end
+		local spellID, _, isKnown = GetFlyoutSlotInfo(flyoutID, flyoutSlot)
+		local spellIndex = FindSpellBookSlotBySpellID(spellID)
+		if isKnown then C:ListSpell(spellIndex) end
 	end
 end
 
 function C:ProcessSpell(spellIndex)
-	local shouldList, spellID, spellName, slotType, special = C:ShouldListSpell(spellIndex)
-	if shouldList then
-		if slotType == "SPELL" or slotType == "PETACTION" then
-			C:ListSpell(spellName, spellID)
-		elseif slotType == "FLYOUT" then
-			C:ProcessFlyout(special)
-		end
-	end
+	local spellID = C:ShouldListSpell(spellIndex)
+	local slotType, special = GetSpellBookItemInfo(spellIndex, BOOKTYPE_SPELL)
+	
+	if not spellID and slotType ~= "FLYOUT" then return end
+
+	if slotType == "FLYOUT" then C:ProcessFlyout(special)
+	else C:ListSpell(spellIndex) end
 end
 
 function C:ProcessSpellBookTab(tabIndex)
@@ -273,46 +263,62 @@ function C:UpdateItemSelect()
     ACR:NotifyChange("ElvUI")
 end
 
-function C:UpdateActiveBindingsGroup(key, binding, harmful, global)
-    local i = 1
-    local spellText = ""
-    local bindingID = ""
-
-	if  global == nil then global = false end
+function C:CreateSpellBinding(spellName, harmful) 
+	local spellText, nameColor, bindingID = "", "", ""
 
 	if harmful then nameColor = "|c00CC3333"
 	else nameColor = "|c0033CC33" end
 
+	local usable, nomana = IsUsableSpell(spellName)
+	if not usable and not nomana then 
+		bindingID = "Inactive_"..spellName 
+		nameColor = "|c00636363"
+		return bindingID, nameColor, spellText
+	end
+
+	local _, _, _, _, _, _, spellID = GetSpellInfo(spellName)
+	local spellIndex = FindSpellBookSlotBySpellID(spellID)	
+	if spellIndex then spellText = addon:GetSpellText(spellIndex, BOOKTYPE_SPELL, "spell") end
+		
+	if spellID then
+		bindingID = "spell_"..spellID
+	else
+		bindingID = "Inactive_"..spellName
+	end
+
+	return bindingID, nameColor, spellText
+end
+
+function C:CreateItemBinding(itemName, harmful)
+	local itemText, nameColor, bindingID = "", "", ""
+
+	if addon.UsableItemMap[itemName] == nil then
+		bindingID = "Inactive_"..itemName 
+		nameColor = "|c00636363"
+		return bindingID, nameColor, itemText
+	end
+
+	if harmful then nameColor = "|c00CC3333"
+	else nameColor = "|c0033CC33" end
+
+	local item = addon.UsableItemMap[itemName]
+	itemText = addon:GetSpellText(item.bag, item.slot, "item")
+	bindingID = "item_".. addon.UsableItemMap[itemName].id
+
+	return bindingID, nameColor, itemText
+end
+
+function C:UpdateActiveBindingsGroup(key, binding, harmful, global)
+    local spellText = ""
+    local bindingID = ""
+	local nameColor = "|c0033CC33"
+
+	if  global == nil then global = false end
+
     if binding.type == "spell" then
-        local usable, nomana = IsUsableSpell(binding.ability)
-        if not usable and not nomana then 
-			if global == true then nameColor = "|c00636363"
-			else return end
-		end
-
-        local _, _, _, _, _, _, spellID = GetSpellInfo(binding.ability)
-        while true do
-            local spellName = GetSpellBookItemName(i, BOOKTYPE_SPELL)
-            if not spellName then do break end end
-
-            if spellName == binding.ability then spellText = addon:GetSpellText(i, BOOKTYPE_SPELL, binding.type) end
-            i = i + 1
-        end
-		if spellID then
-			bindingID = "spell_"..spellID
-		else
-			bindingID = "Inactive_"..binding.ability
-		end
+		bindingID, nameColor, spellText = C:CreateSpellBinding(binding.ability, harmful)
     elseif binding.type == "item" then
-        if (addon.UsableItemMap[binding.ability] ~= nil) then
-            local bag = addon.UsableItemMap[binding.ability].bag
-            local slot = addon.UsableItemMap[binding.ability].slot
-            spellText = addon:GetSpellText(bag, slot, binding.type)
-			bindingID = "item_".. addon.UsableItemMap[binding.ability].id
-		else 
-			bindingID = "Inactive_".. binding.ability
-			nameColor = "|c00636363"
-		end
+		bindingID, nameColor, spellText = C:CreateItemBinding(binding.ability, harmful)
     elseif binding.type == "command" then
         bindingID = binding.ability
     end
