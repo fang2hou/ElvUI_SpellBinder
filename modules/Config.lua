@@ -4,7 +4,7 @@
 ]]--
 
 local E, L, V, P, G = unpack(ElvUI) -- Engine, Locales, PrivateDB, ProfileDB, GlobalDB
-local ACR = LibStub("AceConfigRegistry-3.0-ElvUI")
+local ACR = LibStub("AceConfigRegistry-3.0")
 local C = E:NewModule("SpellBinder_Config", "AceHook-3.0", "AceEvent-3.0", "AceTimer-3.0")
 local EP = LibStub("LibElvUIPlugin-1.0")
 

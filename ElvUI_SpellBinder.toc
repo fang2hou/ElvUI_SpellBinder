@@ -1,4 +1,4 @@
-## Interface: 80000
+## Interface: 80100
 ## Title: |cfffe7b2cElvUI|r SpellBinder
 ## Version: @project-version@
 ## Author: Nîne-Shu'halo
