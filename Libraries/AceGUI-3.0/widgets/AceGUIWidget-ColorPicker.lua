@@ -1,7 +1,7 @@
 --[[-----------------------------------------------------------------------------
 ColorPicker Widget
 -------------------------------------------------------------------------------]]
-local Type, Version = "ColorPicker-ElvUI", 23
+local Type, Version = "ColorPicker", 24
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
 if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
 
@@ -67,19 +67,11 @@ local function ColorSwatch_OnClick(frame)
 			ColorCallback(self, r, g, b, a, true)
 		end
 
-		local r, g, b, a, dR, dG, dB, dA = self.r, self.g, self.b, self.a, self.dR, self.dG, self.dB, self.dA
+		local r, g, b, a = self.r, self.g, self.b, self.a
 		if self.HasAlpha then
 			ColorPickerFrame.opacity = 1 - (a or 0)
 		end
 		ColorPickerFrame:SetColorRGB(r, g, b)
-
-		if(ColorPPDefault and self.dR and self.dG and self.dB) then
-			local alpha = 1
-			if(self.dA) then
-				alpha = 1 - self.dA
-			end
-			ColorPPDefault.colors = {r = self.dR, g = self.dG, b = self.dB, a = alpha}
-		end
 
 		ColorPickerFrame.cancelFunc = function()
 			ColorCallback(self, r, g, b, a, true)
@@ -109,15 +101,11 @@ local methods = {
 		self.text:SetText(text)
 	end,
 
-	["SetColor"] = function(self, r, g, b, a, defaultR, defaultG, defaultB, defaultA)
+	["SetColor"] = function(self, r, g, b, a)
 		self.r = r
 		self.g = g
 		self.b = b
 		self.a = a or 1
-		self.dR = defaultR or self.dR
-		self.dG = defaultG or self.dG
-		self.dB = defaultB or self.dB
-		self.dA = defaultA or self.dA
 		self.colorSwatch:SetVertexColor(r, g, b, a)
 	end,
 
@@ -152,10 +140,11 @@ local function Constructor()
 	local colorSwatch = frame:CreateTexture(nil, "OVERLAY")
 	colorSwatch:SetWidth(19)
 	colorSwatch:SetHeight(19)
-	colorSwatch:SetTexture("Interface\\ChatFrame\\ChatFrameColorSwatch")
+	colorSwatch:SetTexture(130939) -- Interface\\ChatFrame\\ChatFrameColorSwatch
 	colorSwatch:SetPoint("LEFT")
 
 	local texture = frame:CreateTexture(nil, "BACKGROUND")
+	colorSwatch.background = texture
 	texture:SetWidth(16)
 	texture:SetHeight(16)
 	texture:SetColorTexture(1, 1, 1)
@@ -163,9 +152,10 @@ local function Constructor()
 	texture:Show()
 
 	local checkers = frame:CreateTexture(nil, "BACKGROUND")
+	colorSwatch.checkers = checkers
 	checkers:SetWidth(14)
 	checkers:SetHeight(14)
-	checkers:SetTexture("Tileset\\Generic\\Checkers")
+	checkers:SetTexture(188523) -- Tileset\\Generic\\Checkers
 	checkers:SetTexCoord(.25, 0, 0.5, .25)
 	checkers:SetDesaturated(true)
 	checkers:SetVertexColor(1, 1, 1, 0.75)
@@ -180,7 +170,7 @@ local function Constructor()
 	text:SetPoint("RIGHT")
 
 	--local highlight = frame:CreateTexture(nil, "HIGHLIGHT")
-	--highlight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+	--highlight:SetTexture(136810) -- Interface\\QuestFrame\\UI-QuestTitleHighlight
 	--highlight:SetBlendMode("ADD")
 	--highlight:SetAllPoints(frame)
 
